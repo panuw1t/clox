@@ -17,5 +17,8 @@ $(OBJ_DIR):
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) -c $< -o $@
 
+run: $(TARGET)
+	./$^
+
 clean:
 	rm -rf $(OBJ_DIR)
