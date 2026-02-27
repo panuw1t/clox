@@ -4,6 +4,8 @@ OBJ_DIR := build
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
+DEPS := $(OBJS:.o=.d)
+
 TARGET := $(OBJ_DIR)/main
 
 all: $(TARGET)
@@ -15,10 +17,12 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) -c $< -o $@
+	$(CC) -MMD -MP -c $< -o $@
 
 run: $(TARGET)
 	./$^
 
 clean:
 	rm -rf $(OBJ_DIR)
+
+-include $(DEPS)
