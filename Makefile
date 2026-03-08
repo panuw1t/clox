@@ -22,6 +22,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 run: $(TARGET)
 	./$^
 
+test: $(TARGET) test.c
+	./$^
+
 clean:
 	rm -rf $(OBJ_DIR)
 
