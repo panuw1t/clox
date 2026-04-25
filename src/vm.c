@@ -34,9 +34,11 @@ void initVM() {
   vm.stack = GROW_ARRAY(Value, vm.stack, 0, STACK_MAX);
   resetStack();
   vm.objects = NULL;
+  initTable(&vm.strings);
 }
 
 void freeVM() {
+  freeTable(&vm.strings);
   freeObjects();
 }
 
