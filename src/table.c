@@ -129,3 +129,31 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
     index = (index + 1) % table->capacity;
   }
 }
+
+uint32_t hashValue(Value value) {
+  switch (value.type) {
+  case VAL_BOOL: return value.as.boolean ? 1 : 2;
+  case VAL_NIL: return 0;
+  case VAL_NUMBER: {
+    double num = value.as.number;
+    if (num == 0.0) num = 0.0; // normalize -0.0
+    union {
+      double num;
+      uint64_t bits;
+    } data;
+
+    data.num = num;
+    return (uint32_t)(data.bits ^ (data.bits >> 32));
+  }
+  case VAL_OBJ: {
+    switch (OBJ_TYPE(value)) {
+    case OBJ_STRING: {
+      ObjString* string = AS_STRING(value);
+      return string->hash;
+    }
+    }
+  }
+  }
+
+  return 0;
+}
