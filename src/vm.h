@@ -11,6 +11,7 @@ typedef struct {
   uint8_t* ip;
   Value *stack;
   Value* stackTop;
+  Table globals;
   Table strings;
   Obj* objects;
   int stackSize;
