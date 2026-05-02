@@ -1,1 +1,6 @@
-3
+{
+  var a = "outer";
+  {
+    var a = a;
+  }
+}
