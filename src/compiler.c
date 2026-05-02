@@ -167,12 +167,14 @@ static void binary(bool canAssign) {
 }
 
 static void literal(bool canAssign) {
+  TRACE_ENTER();
   switch (parser.previous.type) {
   case TOKEN_FALSE: emitByte(OP_FALSE); break;
   case TOKEN_NIL: emitByte(OP_NIL); break;
   case TOKEN_TRUE: emitByte(OP_TRUE); break;
   default: return; // Unreachable.
   }
+  TRACE_EXIT();
 }
 
 static void grouping(bool canAssign) {
@@ -190,8 +192,10 @@ static void number(bool canAssign) {
 }
 
 static void string(bool canAssign) {
+  TRACE_ENTER();
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
                                   parser.previous.length - 2)));
+  TRACE_EXIT();
 }
 
 static void namedVariable(Token name, bool canAssign) {
@@ -205,7 +209,9 @@ static void namedVariable(Token name, bool canAssign) {
 }
 
 static void variable(bool canAssign) {
+  TRACE_ENTER();
   namedVariable(parser.previous, canAssign);
+  TRACE_EXIT();
 }
 
 static void unary(bool canAssign) {
@@ -289,7 +295,15 @@ static void parsePrecedence(Precedence precedence) {
 }
 
 static uint8_t identifierConstant(Token* name) {
-  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+  Chunk* chunk = currentChunk();
+  Value value = OBJ_VAL(copyString(name->start, name->length));
+  for (int i = 0; i < chunk->constants.count; i++) {
+    if (IS_STRING(chunk->constants.values[i]) &&
+        AS_OBJ(chunk->constants.values[i]) == AS_OBJ(value)){
+      return i;
+    }
+  }
+  return makeConstant(value);
 }
 
 static uint8_t parseVariable(const char* errorMessage) {
@@ -312,12 +326,15 @@ static void expression() {
 }
 
 static void expressionStatement() {
+  TRACE_ENTER();
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
   emitByte(OP_POP);
+  TRACE_EXIT();
 }
 
 static void varDeclaration() {
+  TRACE_ENTER();
   uint8_t global = parseVariable("Expect variable name.");
 
   if (match(TOKEN_EQUAL)) {
@@ -328,12 +345,15 @@ static void varDeclaration() {
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
   defineVariable(global);
+  TRACE_EXIT();
 }
 
 static void printStatement() {
+  TRACE_ENTER();
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emitByte(OP_PRINT);
+  TRACE_EXIT();
 }
 
 static void synchronize() {
@@ -361,20 +381,24 @@ static void synchronize() {
 }
 
 static void declaration() {
+  TRACE_ENTER();
   if (match(TOKEN_VAR)) {
     varDeclaration();
   } else {
     statement();
   }
+  TRACE_EXIT();
   if (parser.panicMode) synchronize();
 }
 
 static void statement() {
+  TRACE_ENTER();
   if (match(TOKEN_PRINT)) {
     printStatement();
   } else {
     expressionStatement();
   }
+  TRACE_EXIT();
 }
 
 bool compile(const char* source, Chunk* chunk) {
