@@ -5,6 +5,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+#include "memory.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -42,10 +43,11 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool isConst;
 } Local;
 
 typedef struct {
-  Local locals[UINT8_COUNT];
+  Local* locals;
   int localCount;
   int scopeDepth;
 } Compiler;
@@ -142,6 +144,8 @@ static void emitConstant(Value value) {
 }
 
 static void initCompiler(Compiler* compiler) {
+  compiler->locals = NULL;
+  compiler->locals = GROW_ARRAY(Local, compiler->locals, 0, UINT8_COUNT);
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
   current = compiler;
@@ -236,19 +240,43 @@ static void string(bool canAssign) {
 static void namedVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
   int arg = resolveLocal(current, &name);
+  bool isLong = arg > UINT8_MAX;
   if (arg != -1) {
-    getOp = OP_GET_LOCAL;
-    setOp = OP_SET_LOCAL;
+    if (isLong) {
+      getOp = OP_GET_SHORT_LOCAL;
+      setOp = OP_SET_SHORT_LOCAL;
+    } else {
+      getOp = OP_GET_LOCAL;
+      setOp = OP_SET_LOCAL;
+    }
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
   }
+
   if (canAssign && match(TOKEN_EQUAL)) {
+    if (setOp == OP_SET_LOCAL && current->locals[arg].isConst) {
+      error("Can not assign val variable.");
+    }
     expression();
-    emitBytes(setOp, (uint8_t)arg);
+    if (isLong){
+      uint8_t byte1 = (arg >> 8) & 0xff;
+      uint8_t byte2 = arg & 0xff;
+      emitByte(setOp);
+      emitBytes(byte1, byte2);
+    } else {
+      emitBytes(setOp, (uint8_t)arg);
+    }
   } else {
-    emitBytes(getOp, (uint8_t)arg);
+    if (isLong){
+      uint8_t byte1 = (arg >> 8) & 0xff;
+      uint8_t byte2 = arg & 0xff;
+      emitByte(getOp);
+      emitBytes(byte1, byte2);
+    } else {
+      emitBytes(getOp, (uint8_t)arg);
+    }
   }
 }
 
@@ -369,17 +397,21 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   return -1;
 }
 
-static void addLocal(Token name) {
-  if (current->localCount == UINT8_COUNT) {
+static void addLocal(Token name, bool isConst) {
+  if (current->localCount >= UINT16_COUNT) {
     error("Too many local variables in function.");
     return;
+  }
+  if (current->localCount >= UINT8_COUNT) {
+    current->locals = GROW_ARRAY(Local, current->locals, UINT8_COUNT, UINT16_COUNT);
   }
   Local* local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->isConst = isConst;
 }
 
-static void declareVariable() {
+static void declareVariable(bool isConst) {
   if (current->scopeDepth == 0) return;
 
   Token* name = &parser.previous;
@@ -393,12 +425,12 @@ static void declareVariable() {
       error("Already a variable with this name in this scope.");
     }
   }
-  addLocal(*name);
+  addLocal(*name, isConst);
 }
 
-static uint8_t parseVariable(const char* errorMessage) {
+static uint8_t parseVariable(const char* errorMessage, bool isConst) {
   consume(TOKEN_IDENTIFIER, errorMessage);
-  declareVariable();
+  declareVariable(isConst);
   if (current->scopeDepth > 0) return 0;
   return identifierConstant(&parser.previous);
 }
@@ -407,12 +439,17 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-static void defineVariable(uint8_t global) {
+static void defineVariable(uint8_t global, bool isConst) {
   if (current->scopeDepth > 0) {
     markInitialized();
     return;
   }
   emitBytes(OP_DEFINE_GLOBAL, global);
+  if (isConst) {
+    emitByte(OP_TRUE);
+  } else {
+    emitByte(OP_FALSE);
+  }
 }
 
 static ParseRule* getRule(TokenType type) {
@@ -445,7 +482,7 @@ static void expressionStatement() {
 
 static void varDeclaration() {
   TRACE_ENTER();
-  uint8_t global = parseVariable("Expect variable name.");
+  uint8_t global = parseVariable("Expect variable name.", false);
 
   if (match(TOKEN_EQUAL)) {
     expression();
@@ -454,7 +491,22 @@ static void varDeclaration() {
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
-  defineVariable(global);
+  defineVariable(global, false);
+  TRACE_EXIT();
+}
+
+static void valDeclaration() {
+  TRACE_ENTER();
+  uint8_t global = parseVariable("Expect variable name.", true);
+
+  if (match(TOKEN_EQUAL)) {
+    expression();
+  } else {
+    emitByte(OP_NIL);
+  }
+  consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+  defineVariable(global, true);
   TRACE_EXIT();
 }
 
@@ -494,6 +546,9 @@ static void declaration() {
   TRACE_ENTER();
   if (match(TOKEN_VAR)) {
     varDeclaration();
+  }
+  else if (match(TOKEN_VAL)) {
+    valDeclaration();
   } else {
     statement();
   }

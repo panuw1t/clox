@@ -23,7 +23,7 @@ static void runtimeError(const char* format, ...) {
   fputs("\n", stderr);
 
   size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines[instruction].line;
+  int line = getLine(vm.chunk, instruction);
   fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
 }
@@ -83,6 +83,17 @@ static void concatenate() {
   push(OBJ_VAL(result));
 }
 
+static inline uint16_t readShort(VM vm) {
+  vm.ip += 2;
+  return (uint16_t)(((uint16_t)vm.ip[-2] << 8) | vm.ip[-1]);
+}
+
+static inline uint32_t readLong(VM vm) {
+  vm.ip += 3;
+  return ((uint32_t)vm.ip[-3] << 16) |
+         ((uint32_t)vm.ip[-2] << 8)  |
+         (uint32_t)vm.ip[-1];
+}
 /* void negate() { */
 /*   Value* p = vm.stackTop - 1; */
 /*   *p = -(*p); */
@@ -90,8 +101,10 @@ static void concatenate() {
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
+#define READ_SHORT() readShort(vm)
+#define READ_LONG() readLong(vm)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-#define READ_CONSTANT_LONG() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_CONSTANT_LONG() (vm.chunk->constants.values[READ_LONG()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
     do { \
@@ -136,6 +149,11 @@ for (;;) {
     push(vm.stack[slot]);
     break;
   }
+  case OP_GET_SHORT_LOCAL: {
+    uint16_t slot = READ_SHORT();
+    push(vm.stack[slot]);
+    break;
+  }
   case OP_GET_GLOBAL: {
     ObjString* name = READ_STRING();
     Value value;
@@ -150,10 +168,22 @@ for (;;) {
     ObjString* name = READ_STRING();
     tableSet(&vm.globals, name, peek(0));
     pop();
+    instruction = READ_BYTE();
+    if (instruction == OP_TRUE) {
+      tableSet(&vm.constGlobals, name, BOOL_VAL(true));
+    }
+    else {
+      tableSet(&vm.constGlobals, name, BOOL_VAL(false));
+    }
     break;
   }
   case OP_SET_LOCAL: {
     uint8_t slot = READ_BYTE();
+    vm.stack[slot] = peek(0);
+    break;
+  }
+  case OP_SET_SHORT_LOCAL: {
+    uint16_t slot = READ_SHORT();
     vm.stack[slot] = peek(0);
     break;
   }
@@ -162,6 +192,12 @@ for (;;) {
     if (tableSet(&vm.globals, name, peek(0))) {
       tableDelete(&vm.globals, name);
       runtimeError("Undefined variable '%s'.", name->chars);
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    Value isConst;
+    tableGet(&vm.constGlobals, name, &isConst);
+    if (AS_BOOL(isConst) == true) {
+      runtimeError("Cannot assign val variable '%s'.", name->chars);
       return INTERPRET_RUNTIME_ERROR;
     }
     break;
@@ -215,6 +251,9 @@ for (;;) {
 
 #undef READ_STRING
 #undef READ_CONSTANT
+#undef READ_CONSTANT_LONG
+#undef READ_LONG
+#undef READ_SHORT
 #undef READ_BYTE
 #undef BINARY_OP
 }

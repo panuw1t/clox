@@ -1,6 +1,9 @@
+val dog = "what";
 {
-  var a = "outer";
+  val x = "outer";
   {
-    var a = a;
+    val a = 30;
+    print x;
   }
 }
+print dog;
