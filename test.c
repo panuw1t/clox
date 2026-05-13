@@ -7,3 +7,8 @@ val dog = "what";
   }
 }
 print dog;
+
+
+for (var x = 0; x < 10; x = x + 1) {
+  print x * 2;
+}

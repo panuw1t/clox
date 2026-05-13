@@ -83,11 +83,6 @@ static void concatenate() {
   push(OBJ_VAL(result));
 }
 
-static inline uint16_t readShort(VM vm) {
-  vm.ip += 2;
-  return (uint16_t)(((uint16_t)vm.ip[-2] << 8) | vm.ip[-1]);
-}
-
 static inline uint32_t readLong(VM vm) {
   vm.ip += 3;
   return ((uint32_t)vm.ip[-3] << 16) |
@@ -101,7 +96,8 @@ static inline uint32_t readLong(VM vm) {
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
-#define READ_SHORT() readShort(vm)
+#define READ_SHORT() \
+    (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
 #define READ_LONG() readLong(vm)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 #define READ_CONSTANT_LONG() (vm.chunk->constants.values[READ_LONG()])
@@ -241,6 +237,21 @@ for (;;) {
   case OP_PRINT: {
     printValue(pop());
     printf("\n");
+    break;
+  }
+  case OP_JUMP: {
+    uint16_t offset = READ_SHORT();
+    vm.ip += offset;
+    break;
+  }
+  case OP_JUMP_IF_FALSE: {
+    uint16_t offset = READ_SHORT();
+    if (isFalsey(peek(0))) vm.ip += offset;
+    break;
+  }
+  case OP_LOOP: {
+    uint16_t offset = READ_SHORT();
+    vm.ip -= offset;
     break;
   }
   case OP_RETURN: {
