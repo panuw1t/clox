@@ -579,6 +579,56 @@ static void forStatement() {
   TRACE_EXIT();
 }
 
+static void switchStatement() {
+  TRACE_ENTER()
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' after block.");
+  int jump = emitJump(OP_JUMP);
+  int toEnd = currentChunk()->count;
+  int def = currentChunk()->count;
+  int endJump = emitJump(OP_JUMP);
+  patchJump(jump);
+  while (match(TOKEN_CASE)) {
+    emitByte(OP_DUP);
+    expression();
+    consume(TOKEN_COLON, "Expect ':' after expression.");
+    emitByte(OP_EQUAL);
+    int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    statement();
+    emitLoop(toEnd);
+    patchJump(thenJump);
+    emitByte(OP_POP);
+  }
+  if (match(TOKEN_DEFAULT)) {
+    consume(TOKEN_COLON, "Expect ':' after expression.");
+    int jump = emitJump(OP_JUMP);
+    def = currentChunk()->count;
+    statement();
+    emitLoop(toEnd);
+    patchJump(jump);
+  }
+  while (match(TOKEN_CASE)) {
+    emitByte(OP_DUP);
+    expression();
+    consume(TOKEN_COLON, "Expect ':' after expression.");
+    emitByte(OP_EQUAL);
+    int thenJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    statement();
+    emitLoop(toEnd);
+    patchJump(thenJump);
+    emitByte(OP_POP);
+  }
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+  emitLoop(def);
+  patchJump(endJump);
+  emitByte(OP_POP);
+  TRACE_EXIT();
+}
+
 static void ifStatement() {
   TRACE_ENTER();
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
@@ -691,10 +741,12 @@ static void declaration() {
   if (parser.panicMode) synchronize();
 }
 
-static void statement() {
+static void statement(int loopStat) {
   TRACE_ENTER();
   if (match(TOKEN_PRINT)) {
     printStatement();
+  } else if (match(TOKEN_SWITCH)) {
+    switchStatement();
   } else if (match(TOKEN_FOR)) {
     forStatement();
   } else if (match(TOKEN_IF)) {

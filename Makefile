@@ -1,6 +1,8 @@
 CC := cc
 SRC_DIR := src
 OBJ_DIR := build
+TEST_DIR := test
+TEST ?= 1
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
@@ -22,7 +24,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 run: $(TARGET)
 	./$^
 
-test: $(TARGET) test.c
+test: $(TARGET) $(TEST_DIR)/test$(TEST).c
 	./$^
 
 clean:
