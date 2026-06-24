@@ -11,15 +11,31 @@ typedef enum {
 
 typedef struct {
   int count;
+  int line;
+} LineRecord;
+
+typedef struct {
+  int count;
+  int capacity;
+  LineRecord* record;
+} LineArray;
+
+typedef struct {
+  int count;
   int capacity;
   uint8_t* code;
   ValueArray constants;
-  int* lines;
+  LineArray lines;
 } Chunk;
 
 void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
+
+void initLineArray(LineArray *lines);
+void writeLine(LineArray* lines, int line);
+void freeLineArray(LineArray* lines);
+int getLine(LineArray* lines, int offset);
 
 #endif

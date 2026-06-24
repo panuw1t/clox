@@ -4,6 +4,8 @@ OBJ_DIR := build
 TEST_DIR := test
 TEST ?= 1
 
+.PHONY: test
+
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 DEPS := $(OBJS:.o=.d)
