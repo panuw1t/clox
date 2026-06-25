@@ -13,6 +13,10 @@ int main(int argc, char *argv[])
 
   writeChunk(&chunk, OP_RETURN, 123);
 
+  writeConstant(&chunk, 10.3, 144);
+  writeConstant(&chunk, 11.3, 144);
+  writeConstant(&chunk, 12.3, 145);
+
   disassembleChunk(&chunk, "test chunk");
   freeChunk(&chunk);
   return 0;

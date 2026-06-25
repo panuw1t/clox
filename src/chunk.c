@@ -73,3 +73,20 @@ int getLine(LineArray* lines, int offset) {
     }
   }
 }
+
+void writeConstant(Chunk* chunk, Value value, int line) {
+  int constant = addConstant(chunk, value);
+  if (constant > UINT8_MAX) {
+    if (constant > UINT16_MAX) {
+      // produce error
+    }
+    writeChunk(chunk, OP_CONSTANT_SHORT, line);
+    uint8_t byte1 = (constant >> 8) & 0xFF;
+    uint8_t byte2 = constant & 0xFF;
+    writeChunk(chunk, byte1, line);
+    writeChunk(chunk, byte2, line);
+  } else {
+    writeChunk(chunk, OP_CONSTANT, line);
+    writeChunk(chunk, constant, line);
+  }
+}
