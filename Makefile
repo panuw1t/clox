@@ -1,4 +1,4 @@
-CC := cc
+CC := cc -g
 SRC_DIR := src
 OBJ_DIR := build
 TEST_DIR := test
