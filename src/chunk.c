@@ -72,6 +72,7 @@ int getLine(LineArray* lines, int offset) {
       return lines->record[i].line;
     }
   }
+  return 0;
 }
 
 void writeConstant(Chunk* chunk, Value value, int line) {

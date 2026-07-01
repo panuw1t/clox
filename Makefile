@@ -1,4 +1,5 @@
-CC := cc -g
+CC := cc
+CFLAGS ?=
 SRC_DIR := src
 OBJ_DIR := build
 TEST_DIR := test
@@ -15,13 +16,13 @@ TARGET := $(OBJ_DIR)/main
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 run: $(TARGET)
 	./$^

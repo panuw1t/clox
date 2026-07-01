@@ -34,7 +34,7 @@ void* my_malloc(size_t size) {
   for (BlockHeader* current = free_list_head;current != NULL;current = current->next) {
     if (current->size >= aligned_size && current->is_free) {
       current->is_free = false;
-      if (current->size - aligned_size - sizeof(BlockHeader) > 8) {
+      if (current->size >= aligned_size + sizeof(BlockHeader) + 8) {
         char* header = (char*)current;
         header += sizeof(BlockHeader) + aligned_size;
         BlockHeader* newBlock = (BlockHeader*)header;
