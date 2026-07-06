@@ -2,12 +2,11 @@
 #include "chunk.h"
 #include "debug.h"
 #include "memory.h"
-#include "allocator.h"
 
 
 int main(int argc, char *argv[])
 {
-  test();
+
   Chunk chunk;
   initChunk(&chunk);
   int constant = addConstant(&chunk, 1.2);

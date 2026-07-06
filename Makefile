@@ -1,36 +1,45 @@
-CC := cc
-CFLAGS ?=
-SRC_DIR := src
-OBJ_DIR := build
-TEST_DIR := test
-TEST ?= 1
+CC = gcc
+CFLAGS = -Wall -Wextra -g -Iinclude
 
-.PHONY: test
+SRC_DIR = src
+TEST_DIR = test
+BUILD_DIR = build
 
-SRCS := $(wildcard $(SRC_DIR)/*.c)
-OBJS := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
-DEPS := $(OBJS:.o=.d)
+ALL_SRCS = $(wildcard $(SRC_DIR)/*.c)
+CORE_SRCS = $(filter-out $(SRC_DIR)/main.c, $(ALL_SRCS))
+CORE_OBJS = $(CORE_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
-TARGET := $(OBJ_DIR)/main
+MAIN_OBJ = $(BUILD_DIR)/main.o
+
+TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+TEST_OBJS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(BUILD_DIR)/$(TEST_DIR)/%.o)
+
+TARGET = $(BUILD_DIR)/main
+TEST_TARGET = $(BUILD_DIR)/$(TEST_DIR)/test
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(CORE_OBJS) $(MAIN_OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
+test: $(TEST_TARGET)
+	./$<
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+$(TEST_TARGET): $(CORE_OBJS) $(TEST_OBJS)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.c
+	@mkdir -p $(BUILD_DIR)/$(TEST_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
-	./$^
-
-test: $(TARGET) $(TEST_DIR)/test$(TEST).c
-	./$^
+	./$<
 
 clean:
-	rm -rf $(OBJ_DIR)
+	rm -rf $(BUILD_DIR)
 
--include $(DEPS)
+.PHONY: all clean run test
