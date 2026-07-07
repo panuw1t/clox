@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g -Iinclude
+CFLAGS = -g -Iinclude -MMD -MP
 
 SRC_DIR = src
 TEST_DIR = test
@@ -16,6 +16,8 @@ TEST_OBJS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(BUILD_DIR)/$(TEST_DIR)/%.o)
 
 TARGET = $(BUILD_DIR)/main
 TEST_TARGET = $(BUILD_DIR)/$(TEST_DIR)/test
+
+DEPS = $(CORE_OBJS:.o=.d) $(MAIN_OBJ:.o=.d) $(TEST_OBJS:.o=.d)
 
 all: $(TARGET)
 
@@ -43,3 +45,5 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 .PHONY: all clean run test
+
+-include $(DEPS)

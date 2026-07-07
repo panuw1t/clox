@@ -6,7 +6,9 @@
 
 int main(int argc, char *argv[])
 {
-
+#ifdef USE_MY_ALLOCATOR
+  init_my_heap(1024 * 1024); // 1 MB
+#endif
   Chunk chunk;
   initChunk(&chunk);
   int constant = addConstant(&chunk, 1.2);
