@@ -25,7 +25,7 @@ $(TARGET): $(CORE_OBJS) $(MAIN_OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
 
 test: $(TEST_TARGET)
-	./$<
+	@./$<
 
 $(TEST_TARGET): $(CORE_OBJS) $(TEST_OBJS)
 	$(CC) $(CFLAGS) $^ -o $@
@@ -39,7 +39,7 @@ $(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
-	./$<
+	@./$<
 
 clean:
 	rm -rf $(BUILD_DIR)
