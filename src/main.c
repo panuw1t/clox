@@ -2,6 +2,7 @@
 #include "chunk.h"
 #include "debug.h"
 #include "memory.h"
+#include "vm.h"
 
 
 int main(int argc, char *argv[])
@@ -9,19 +10,31 @@ int main(int argc, char *argv[])
 #ifdef USE_MY_ALLOCATOR
   init_my_heap(1024 * 1024); // 1 MB
 #endif
+  initVM();
   Chunk chunk;
   initChunk(&chunk);
+
   int constant = addConstant(&chunk, 1.2);
   writeChunk(&chunk, OP_CONSTANT, 123);
   writeChunk(&chunk, constant, 123);
 
+  constant = addConstant(&chunk, 3.4);
+  writeChunk(&chunk, OP_CONSTANT, 123);
+  writeChunk(&chunk, constant, 123);
+
+  writeChunk(&chunk, OP_ADD, 123);
+
+  constant = addConstant(&chunk, 5.6);
+  writeChunk(&chunk, OP_CONSTANT, 123);
+  writeChunk(&chunk, constant, 123);
+
+  writeChunk(&chunk, OP_DIVIDE, 123);
+  writeChunk(&chunk, OP_NEGATE, 123);
+
   writeChunk(&chunk, OP_RETURN, 123);
-
-  writeConstant(&chunk, 10.3, 144);
-  writeConstant(&chunk, 11.3, 144);
-  writeConstant(&chunk, 12.3, 145);
-
-  disassembleChunk(&chunk, "test chunk");
+  /* disassembleChunk(&chunk, "test chunk"); */
+  interpret(&chunk);
+  freeVM();
   freeChunk(&chunk);
   return 0;
 }
