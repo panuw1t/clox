@@ -1,7 +1,6 @@
-#include <stdio.h>
-#include "common.h"
 #include "debug.h"
 #include "vm.h"
+#include "memory.h"
 
 VM vm;
 
@@ -9,14 +8,27 @@ static void resetStack() {
   vm.stackTop = vm.stack;
 }
 
+void initStack() {
+  vm.stackCapacity = 0;
+  vm.stack = NULL;
+  vm.stackTop = NULL;
+}
+
 void initVM() {
-  resetStack();
+  initStack();
 }
 
 void freeVM() {
 }
 
 void push(Value value) {
+  if (vm.stackCapacity == 0 || vm.stackTop - vm.stack < vm.stackCapacity + 1) {
+    int index = vm.stackTop - vm.stack;
+    int oldCapacity = vm.stackCapacity;
+    vm.stackCapacity = GROW_CAPACITY(oldCapacity > 0 ? oldCapacity : STACK_MAX / 2);
+    vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
+    vm.stackTop = vm.stack + index;
+  }
   *vm.stackTop = value;
   vm.stackTop++;
 }
@@ -58,7 +70,11 @@ for (;;) {
   case OP_SUBTRACT: BINARY_OP(-); break;
   case OP_MULTIPLY: BINARY_OP(*); break;
   case OP_DIVIDE:   BINARY_OP(/); break;
-  case OP_NEGATE:   push(-pop()); break;
+  case OP_NEGATE:   {
+    Value constant = *(vm.stackTop - 1);
+    *(vm.stackTop - 1) = -constant;
+    break;
+  }
   case OP_RETURN: {
     printValue(pop());
     printf("\n");
