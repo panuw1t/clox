@@ -51,6 +51,7 @@ void* my_malloc(size_t size) {
 }
 
 void my_free(void* pointer) {
+  if (pointer == NULL) return;
   BlockHeader* header = (BlockHeader*)((char*)pointer - sizeof(BlockHeader));
   BlockHeader* current = free_list_head;
   BlockHeader* previous = NULL;

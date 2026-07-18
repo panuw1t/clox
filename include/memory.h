@@ -5,6 +5,22 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+void* reallocate(void* pointer, size_t oldSize, size_t newSize);
+
+typedef struct BlockHeader {
+  size_t size;
+  bool is_free;
+  struct BlockHeader* next;
+} BlockHeader;
+
+#define ALIGN_8(size) (((size) + 7) & ~7)
+
+void init_my_heap(size_t total_capacity);
+void* my_malloc(size_t size);
+void my_free(void* pointer);
+void *my_reallocate(void* pointer, size_t oldSize, size_t newSize);
+
+
 #define USE_MY_ALLOCATOR
 
 #ifdef USE_MY_ALLOCATOR
@@ -22,20 +38,5 @@
 
 #define FREE_ARRAY(type, pointer, oldCount) \
     REALLOCATE(pointer, sizeof(type) * (oldCount), 0)
-
-void* reallocate(void* pointer, size_t oldSize, size_t newSize);
-
-typedef struct BlockHeader {
-  size_t size;
-  bool is_free;
-  struct BlockHeader* next;
-} BlockHeader;
-
-#define ALIGN_8(size) (((size) + 7) & ~7)
-
-void init_my_heap(size_t total_capacity);
-void* my_malloc(size_t size);
-void my_free(void* pointer);
-void *my_reallocate(void* pointer, size_t oldSize, size_t newSize);
 
 #endif

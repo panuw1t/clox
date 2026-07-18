@@ -21,12 +21,12 @@ void initVM() {
 }
 
 void freeVM() {
-  /* freeChunk(vm.chunk); */
 }
 
 void push(Value value) {
-  if (vm.stackCapacity == 0 || vm.stackTop - vm.stack < vm.stackCapacity + 1) {
-    int index = vm.stackTop - vm.stack;
+  if (vm.stackCapacity == 0 || vm.stackCapacity < vm.stackTop - vm.stack + 1) {
+    int index = 0;
+    if (vm.stack != NULL) index = vm.stackTop - vm.stack;
     int oldCapacity = vm.stackCapacity;
     vm.stackCapacity = GROW_CAPACITY(oldCapacity > 0 ? oldCapacity : STACK_MAX / 2);
     vm.stack = GROW_ARRAY(Value, vm.stack, oldCapacity, vm.stackCapacity);
@@ -92,6 +92,19 @@ for (;;) {
 }
 
 InterpretResult interpret(const char* source) {
-  compile(source);
-  return INTERPRET_OK;
+  Chunk chunk;
+  initChunk(&chunk);
+
+  if (!compile(source, &chunk)) {
+    freeChunk(&chunk);
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  vm.chunk = &chunk;
+  vm.ip = vm.chunk->code;
+
+  InterpretResult result = run();
+
+  freeChunk(&chunk);
+  return result;
 }
