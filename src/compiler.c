@@ -17,6 +17,7 @@ typedef struct {
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT,  // =
+  PREC_CONDITION,   // ?
   PREC_OR,          // or
   PREC_AND,         // and
   PREC_EQUALITY,    // == !=
@@ -143,6 +144,14 @@ static void expression();
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
+static void ternary() {
+  TRACE_ENTRY();
+  parsePrecedence(PREC_CONDITION);
+  consume(TOKEN_COLON, "Expect ':' after expression.");
+  parsePrecedence(PREC_CONDITION);
+  TRACE_EXIT();
+}
+
 static void binary() {
   TRACE_ENTRY();
   TokenType operatorType = parser.previous.type;
@@ -235,6 +244,7 @@ ParseRule rules[] = {
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_QUESTION]      = {NULL,     ternary,PREC_CONDITION},
 };
 
 static void parsePrecedence(Precedence precedence) {
