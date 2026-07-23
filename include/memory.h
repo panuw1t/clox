@@ -1,9 +1,12 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "common.h"
 #include <stdbool.h>
 #include <stdio.h>
+
+#include "common.h"
+#include "object.h"
+
 
 void* reallocate(void* pointer, size_t oldSize, size_t newSize);
 
@@ -19,6 +22,7 @@ void init_my_heap(size_t total_capacity);
 void* my_malloc(size_t size);
 void my_free(void* pointer);
 void *my_reallocate(void* pointer, size_t oldSize, size_t newSize);
+void freeObjects();
 
 
 #define USE_MY_ALLOCATOR
@@ -28,6 +32,11 @@ void *my_reallocate(void* pointer, size_t oldSize, size_t newSize);
 #else
     #define REALLOCATE reallocate
 #endif
+
+#define ALLOCATE(type, count) \
+    (type*)REALLOCATE(NULL, 0, sizeof(type) * (count))
+
+#define FREE(type, pointer) REALLOCATE(pointer, sizeof(type), 0)
 
 #define GROW_CAPACITY(capacity) \
     ((capacity) < 8 ? 8 : (capacity) * 2)
