@@ -35,11 +35,13 @@ void initStack() {
 
 void initVM() {
   initStack();
+  initTable(&vm.strings);
   vm.objects = NULL;
 }
 
 void freeVM() {
   freeObjects();
+  freeTable(&vm.strings);
 }
 
 void push(Value value) {
@@ -69,13 +71,20 @@ static void concatenate() {
   ObjString* a = AS_STRING(pop());
 
   int length = a->length + b->length;
-  char* chars = ALLOCATE(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
-  chars[length] = '\0';
-
-  ObjString* result = takeString(chars, length);
-  push(OBJ_VAL(result));
+  ObjString* string = allocateString(length, 0);
+  memcpy(string->chars, a->chars, a->length);
+  memcpy(string->chars + a->length, b->chars, b->length);
+  string->chars[length] = '\0';
+  uint32_t hash = hashString(string->chars, length);
+  string->hash = hash;
+  ObjString* interned = tableFindString(&vm.strings, string->chars, length, hash);
+  if (interned != NULL) {
+    FREE(ObjString, string);
+    push(OBJ_VAL(interned));
+  } else {
+    tableSet(&vm.strings, string, NIL_VAL);
+    push(OBJ_VAL(string));
+  }
 }
 
 static Value peek(int distance) {

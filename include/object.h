@@ -23,11 +23,14 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
-  char* chars;
+  uint32_t hash;
+  char chars[];
 };
 
-ObjString* takeString(char* chars, int length);
+/* ObjString* takeString(char* chars, int length); */
 ObjString* copyString(const char* chars, int length);
+ObjString* allocateString(int length, uint32_t hash);
+uint32_t hashString(const char* key, int length);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
