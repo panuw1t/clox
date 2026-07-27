@@ -82,7 +82,7 @@ static void concatenate() {
     FREE(ObjString, string);
     push(OBJ_VAL(interned));
   } else {
-    tableSet(&vm.strings, string, NIL_VAL);
+    tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
     push(OBJ_VAL(string));
   }
 }

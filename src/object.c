@@ -43,7 +43,7 @@ ObjString* copyString(const char* chars, int length) {
   ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
   if (interned != NULL) return interned;
   ObjString* string = allocateString(length, hash);
-  tableSet(&vm.strings, string, NIL_VAL);
+  tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
   memcpy(string->chars, chars, length);
   string->chars[length] = '\0';
   return string;
