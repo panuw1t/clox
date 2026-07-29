@@ -41,7 +41,8 @@ uint32_t hashValue(Value value) {
 }
 
 static Entry* findEntry(Entry* entries, int capacity, Value key) {
-  uint32_t index = hashValue(key) % capacity;
+  uint32_t hash = hashValue(key);
+  uint32_t index = hash % capacity;
   Entry* tombstone = NULL;
 
   for (;;) {

@@ -1,5 +1,7 @@
 CC = gcc
 CFLAGS = -g -Iinclude -MMD -MP
+ARGS ?=
+TEST_ARGS := $(if $(ARGS), test/lox/$(ARGS),)
 
 SRC_DIR = src
 TEST_DIR = test
@@ -25,7 +27,7 @@ $(TARGET): $(CORE_OBJS) $(MAIN_OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
 
 test: $(TEST_TARGET)
-	@./$<
+	@./$< $(TEST_ARGS)
 
 $(TEST_TARGET): $(CORE_OBJS) $(TEST_OBJS)
 	$(CC) $(CFLAGS) $^ -o $@
@@ -39,7 +41,7 @@ $(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
-	@./$<
+	@./$< $(TEST_ARGS)
 
 clean:
 	rm -rf $(BUILD_DIR)

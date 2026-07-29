@@ -75,11 +75,13 @@ int getLine(LineArray* lines, int offset) {
   return 0;
 }
 
-void writeConstant(Chunk* chunk, Value value, int line) {
+int writeConstant(Chunk* chunk, Value value, int line) {
   int constant = addConstant(chunk, value);
   if (constant > UINT8_MAX) {
     if (constant > UINT16_MAX) {
       // produce error
+      fprintf(stderr, "max stack constant\n");
+      exit(1);
     }
     writeChunk(chunk, OP_CONSTANT_SHORT, line);
     uint8_t byte1 = (constant >> 8) & 0xFF;
@@ -90,4 +92,5 @@ void writeConstant(Chunk* chunk, Value value, int line) {
     writeChunk(chunk, OP_CONSTANT, line);
     writeChunk(chunk, constant, line);
   }
+  return constant;
 }

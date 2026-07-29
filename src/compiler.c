@@ -103,6 +103,16 @@ static void consume(TokenType type, const char* message) {
   errorAtCurrent(message);
 }
 
+static bool check(TokenType type) {
+  return parser.current.type == type;
+}
+
+static bool match(TokenType type) {
+  if (!check(type)) return false;
+  advance();
+  return true;
+}
+
 static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
@@ -126,9 +136,9 @@ static uint8_t makeConstant(Value value) {
   return (uint8_t)constant;
 }
 
-static void emitConstant(Value value) {
+static int emitConstant(Value value) {
   /* emitBytes(OP_CONSTANT, makeConstant(value)); */
-  writeConstant(currentChunk(), value, parser.previous.line);
+  return writeConstant(currentChunk(), value, parser.previous.line);
 }
 
 static void endCompiler() {
@@ -141,7 +151,12 @@ static void endCompiler() {
 }
 
 static void expression();
+static void statement();
+static void declaration();
 static ParseRule* getRule(TokenType type);
+static int parseVariable(const char* errorMessage);
+static void defineVariable();
+static int identifierConstant(Token* name);
 static void parsePrecedence(Precedence precedence);
 
 static void ternary() {
@@ -189,6 +204,79 @@ static void expression() {
   TRACE_EXIT();
 }
 
+static void varDeclaration() {
+  int global = parseVariable("Expect variable name.");
+
+  if (match(TOKEN_EQUAL)) {
+    expression();
+  } else {
+    emitByte(OP_NIL);
+  }
+  consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+  defineVariable();
+}
+
+static void expressionStatement() {
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+  emitByte(OP_POP);
+}
+
+static void printStatement() {
+  TRACE_ENTRY();
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+  emitByte(OP_PRINT);
+  TRACE_EXIT();
+}
+
+static void synchronize() {
+  parser.panicMode = false;
+
+  while (parser.current.type != TOKEN_EOF) {
+    if (parser.previous.type == TOKEN_SEMICOLON) return;
+    switch (parser.current.type) {
+    case TOKEN_CLASS:
+    case TOKEN_FUN:
+    case TOKEN_VAR:
+    case TOKEN_FOR:
+    case TOKEN_IF:
+    case TOKEN_WHILE:
+    case TOKEN_PRINT:
+    case TOKEN_RETURN:
+      return;
+
+    default:
+      ; // Do nothing.
+    }
+
+    advance();
+  }
+}
+
+static void declaration() {
+  TRACE_ENTRY();
+  if (match(TOKEN_VAR)) {
+    varDeclaration();
+  } else {
+    statement();
+  }
+
+  if (parser.panicMode) synchronize();
+  TRACE_EXIT();
+}
+
+static void statement() {
+  TRACE_ENTRY();
+  if (match(TOKEN_PRINT)) {
+    printStatement();
+  } else {
+    expressionStatement();
+  }
+  TRACE_EXIT();
+}
+
 static void grouping() {
   TRACE_ENTRY();
   expression();
@@ -206,6 +294,15 @@ static void number() {
 static void string() {
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
                                   parser.previous.length - 2)));
+}
+
+static void namedVariable(Token name) {
+  int arg = identifierConstant(&name);
+  emitByte(OP_GET_GLOBAL);
+}
+
+static void variable() {
+  namedVariable(parser.previous);
 }
 
 static void unary() {
@@ -244,7 +341,7 @@ ParseRule rules[] = {
   [TOKEN_GREATER_EQUAL] = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
-  [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
   [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
@@ -287,6 +384,19 @@ static void parsePrecedence(Precedence precedence) {
   TRACE_EXIT();
 }
 
+static int identifierConstant(Token* name) {
+  return emitConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
+
+static int parseVariable(const char* errorMessage) {
+  consume(TOKEN_IDENTIFIER, errorMessage);
+  return identifierConstant(&parser.previous);
+}
+
+static void defineVariable() {
+  emitByte(OP_DEFINE_GLOBAL);
+}
+
 static ParseRule* getRule(TokenType type) {
   return &rules[type];
 }
@@ -299,8 +409,11 @@ bool compile(const char* source, Chunk* chunk) {
   parser.panicMode = false;
 
   advance();
-  expression();
-  consume(TOKEN_EOF, "Expect end of expression.");
+
+  while (!match(TOKEN_EOF)) {
+    declaration();
+  }
+
   endCompiler();
   return !parser.hadError;
 }

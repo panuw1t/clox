@@ -36,12 +36,14 @@ void initStack() {
 void initVM() {
   initStack();
   initTable(&vm.strings);
+  initTable(&vm.globals);
   vm.objects = NULL;
 }
 
 void freeVM() {
   freeObjects();
   freeTable(&vm.strings);
+  freeTable(&vm.globals);
 }
 
 void push(Value value) {
@@ -94,6 +96,7 @@ static Value peek(int distance) {
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
     do { \
       if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -126,6 +129,23 @@ for (;;) {
   case OP_NIL: push(NIL_VAL); break;
   case OP_TRUE: push(BOOL_VAL(true)); break;
   case OP_FALSE: push(BOOL_VAL(false)); break;
+  case OP_POP: pop(); break;
+  case OP_GET_GLOBAL: {
+    Value name = pop();
+    Value value;
+    if (!tableGet(&vm.globals, name, &value)) {
+      runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    push(value);
+    break;
+  }
+  case OP_DEFINE_GLOBAL: {
+    tableSet(&vm.globals, peek(1), peek(0));
+    pop();
+    pop();
+    break;
+  }
   case OP_EQUAL: {
     Value b = pop();
     Value a = pop();
@@ -159,9 +179,12 @@ for (;;) {
     push(NUMBER_VAL(-AS_NUMBER(pop())));
     break;
   }
-  case OP_RETURN: {
+  case OP_PRINT: {
     printValue(pop());
     printf("\n");
+    break;
+  }
+  case OP_RETURN: {
     return INTERPRET_OK;
   }
   }
@@ -169,6 +192,7 @@ for (;;) {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }
 
