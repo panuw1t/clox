@@ -146,6 +146,19 @@ for (;;) {
     pop();
     break;
   }
+  case OP_SET_GLOBAL: {
+    Value value = peek(0);
+    Value name = peek(1);
+    if (tableSet(&vm.globals, name, value)) {
+      tableDelete(&vm.globals, name);
+      runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    pop();
+    pop();
+    push(value);
+    break;
+  }
   case OP_EQUAL: {
     Value b = pop();
     Value a = pop();
