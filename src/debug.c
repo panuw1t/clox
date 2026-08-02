@@ -2,6 +2,7 @@
 
 #include "debug.h"
 #include "value.h"
+#include "object.h"
 
 void disassembleChunk(Chunk* chunk, const char* name) {
   printf("== %s ==\n", name);
@@ -15,7 +16,7 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
   int constant = 0;
   int newOffset = 0;
   switch(chunk->code[offset]) {
-  case OP_CONSTANT:
+  default:
     constant = chunk->code[offset + 1];
     newOffset = offset + 2;
     break;
@@ -29,6 +30,14 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
   printValue(chunk->constants.values[constant]);
   printf("'\n");
   return newOffset;
+}
+
+static int variableInstruction(const char* name, Chunk* chunk, int offset) {
+  uint8_t index = chunk->code[offset + 1];
+  printf("%-16s %4d '", name, index);
+  printf("%s", chunk->globalNames[index]->chars);
+  printf("'\n");
+  return offset + 2;
 }
 
 static int simpleInstruction(const char* name, int offset) {
@@ -61,11 +70,11 @@ int disassembleInstruction(Chunk* chunk, int offset) {
   case OP_POP:
     return simpleInstruction("OP_POP", offset);
   case OP_GET_GLOBAL:
-    return simpleInstruction("OP_GET_GLOBAL", offset);
+    return variableInstruction("OP_GET_GLOBAL", chunk, offset);
   case OP_DEFINE_GLOBAL:
-    return simpleInstruction("OP_DEFINE_GLOBAL", offset);
+    return variableInstruction("OP_DEFINE_GLOBAL", chunk, offset);
   case OP_SET_GLOBAL:
-    return simpleInstruction("OP_SET_GLOBAL", offset);
+    return variableInstruction("OP_SET_GLOBAL", chunk, offset);
   case OP_EQUAL:
     return simpleInstruction("OP_EQUAL", offset);
   case OP_GREATER:

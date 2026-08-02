@@ -44,6 +44,7 @@ typedef struct {
   uint8_t* code;
   ValueArray constants;
   LineArray lines;
+  ObjString* globalNames[UINT8_MAX];
 } Chunk;
 
 void initChunk(Chunk* chunk);

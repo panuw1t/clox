@@ -155,7 +155,7 @@ static void statement();
 static void declaration();
 static ParseRule* getRule(TokenType type);
 static int parseVariable(const char* errorMessage);
-static void defineVariable();
+static void defineVariable(int index);
 static int identifierConstant(Token* name);
 static void parsePrecedence(Precedence precedence);
 
@@ -214,7 +214,7 @@ static void varDeclaration() {
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
-  defineVariable();
+  defineVariable(global);
 }
 
 static void expressionStatement() {
@@ -303,14 +303,16 @@ static void namedVariable(Token name, bool canAssign) {
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    emitByte(OP_SET_GLOBAL);
+    emitBytes(OP_SET_GLOBAL, arg);
   } else {
-    emitByte(OP_GET_GLOBAL);
+    emitBytes(OP_GET_GLOBAL, arg);
   }
 }
 
 static void variable(bool canAssign) {
+  TRACE_ENTRY();
   namedVariable(parser.previous, canAssign);
+  TRACE_EXIT();
 }
 
 static void unary(bool canAssign) {
@@ -398,7 +400,19 @@ static void parsePrecedence(Precedence precedence) {
 }
 
 static int identifierConstant(Token* name) {
-  return emitConstant(OBJ_VAL(copyString(name->start, name->length)));
+  Value key = OBJ_VAL(copyString(name->start, name->length));
+  Value index;
+  if (!tableGet(&vm.globalIndices, key, &index)) {
+    index = NUMBER_VAL(vm.globalIndices.count);
+    if (AS_INT(index) > UINT8_MAX) {
+      fprintf(stderr, "max stack globals\n");
+    }
+    writeValueArray(&vm.globals, UNDEFINE_VAL);
+    tableSet(&vm.globalIndices, key, index);
+    currentChunk()->globalNames[AS_INT(index)] = AS_STRING(key);
+  }
+
+  return AS_INT(index);
 }
 
 static int parseVariable(const char* errorMessage) {
@@ -406,8 +420,9 @@ static int parseVariable(const char* errorMessage) {
   return identifierConstant(&parser.previous);
 }
 
-static void defineVariable() {
+static void defineVariable(int index) {
   emitByte(OP_DEFINE_GLOBAL);
+  emitByte(index);
 }
 
 static ParseRule* getRule(TokenType type) {

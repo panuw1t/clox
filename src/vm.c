@@ -36,14 +36,16 @@ void initStack() {
 void initVM() {
   initStack();
   initTable(&vm.strings);
-  initTable(&vm.globals);
+  initValueArray(&vm.globals);
+  initTable(&vm.globalIndices);
   vm.objects = NULL;
 }
 
 void freeVM() {
   freeObjects();
   freeTable(&vm.strings);
-  freeTable(&vm.globals);
+  freeValueArray(&vm.globals);
+  freeTable(&vm.globalIndices);
 }
 
 void push(Value value) {
@@ -131,32 +133,26 @@ for (;;) {
   case OP_FALSE: push(BOOL_VAL(false)); break;
   case OP_POP: pop(); break;
   case OP_GET_GLOBAL: {
-    Value name = pop();
-    Value value;
-    if (!tableGet(&vm.globals, name, &value)) {
-      runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+    Value value = vm.globals.values[READ_BYTE()];
+    if (IS_UNDEFINE(value)) {
+      runtimeError("Undefined variable '%s'.", "x");
       return INTERPRET_RUNTIME_ERROR;
     }
     push(value);
     break;
   }
   case OP_DEFINE_GLOBAL: {
-    tableSet(&vm.globals, peek(1), peek(0));
-    pop();
-    pop();
+    uint8_t index = READ_BYTE();
+    vm.globals.values[index] = pop();
     break;
   }
   case OP_SET_GLOBAL: {
-    Value value = peek(0);
-    Value name = peek(1);
-    if (tableSet(&vm.globals, name, value)) {
-      tableDelete(&vm.globals, name);
-      runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+    uint8_t index = READ_BYTE();
+    if (IS_UNDEFINE(vm.globals.values[index])) {
+      runtimeError("Undefined variable '%s'.", "x");
       return INTERPRET_RUNTIME_ERROR;
     }
-    pop();
-    pop();
-    push(value);
+    vm.globals.values[index] = peek(0);
     break;
   }
   case OP_EQUAL: {

@@ -13,7 +13,8 @@ typedef struct {
   int stackCapacity;
   Value *stack;
   Value* stackTop;
-  Table globals;
+  ValueArray globals;
+  Table globalIndices;
   Table strings;
   Obj* objects;
 } VM;
