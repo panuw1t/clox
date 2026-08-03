@@ -409,7 +409,6 @@ static int identifierConstant(Token* name) {
     }
     writeValueArray(&vm.globals, UNDEFINE_VAL);
     tableSet(&vm.globalIndices, key, index);
-    currentChunk()->globalNames[AS_INT(index)] = AS_STRING(key);
   }
 
   return AS_INT(index);

@@ -154,3 +154,15 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
     index = (index + 1) % table->capacity;
   }
 }
+
+char* getGlobalNameByIndex(Table* table, int index) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    if (IS_STRING(entry->key) && IS_NUMBER(entry->value)) {
+      if (AS_INT(entry->value) == index) {
+        return AS_CSTRING(entry->key);
+      }
+    }
+  }
+  return NULL;
+}

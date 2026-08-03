@@ -133,9 +133,10 @@ for (;;) {
   case OP_FALSE: push(BOOL_VAL(false)); break;
   case OP_POP: pop(); break;
   case OP_GET_GLOBAL: {
-    Value value = vm.globals.values[READ_BYTE()];
+    uint8_t index = READ_BYTE();
+    Value value = vm.globals.values[index];
     if (IS_UNDEFINE(value)) {
-      runtimeError("Undefined variable '%s'.", "x");
+      runtimeError("Undefined variable '%s'.", getGlobalNameByIndex(&vm.globalIndices, index));
       return INTERPRET_RUNTIME_ERROR;
     }
     push(value);
@@ -149,7 +150,7 @@ for (;;) {
   case OP_SET_GLOBAL: {
     uint8_t index = READ_BYTE();
     if (IS_UNDEFINE(vm.globals.values[index])) {
-      runtimeError("Undefined variable '%s'.", "x");
+      runtimeError("Undefined variable '%s'.", getGlobalNameByIndex(&vm.globalIndices, index));
       return INTERPRET_RUNTIME_ERROR;
     }
     vm.globals.values[index] = peek(0);

@@ -1,8 +1,8 @@
 #include <stdio.h>
 
 #include "debug.h"
-#include "value.h"
 #include "object.h"
+#include "vm.h"
 
 void disassembleChunk(Chunk* chunk, const char* name) {
   printf("== %s ==\n", name);
@@ -35,7 +35,7 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
 static int variableInstruction(const char* name, Chunk* chunk, int offset) {
   uint8_t index = chunk->code[offset + 1];
   printf("%-16s %4d '", name, index);
-  printf("%s", chunk->globalNames[index]->chars);
+  printf("%s", getGlobalNameByIndex(&vm.globalIndices, index));
   printf("'\n");
   return offset + 2;
 }
