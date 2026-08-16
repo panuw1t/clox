@@ -135,6 +135,12 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
+static void emitShort(uint16_t val) {
+  uint8_t byte1 = (val >> 8) & 0xFF;
+  uint8_t byte2 = val & 0xFF;
+  emitBytes(byte1, byte2);
+}
+
 static void emitReturn() {
   emitByte(OP_RETURN);
 }
@@ -460,8 +466,8 @@ static int identifierConstant(Token* name) {
   Value index;
   if (!tableGet(&vm.globalIndices, key, &index)) {
     index = NUMBER_VAL(vm.globalIndices.count);
-    if (AS_INT(index) > UINT8_MAX) {
-      fprintf(stderr, "max stack globals\n");
+    if (AS_INT(index) > UINT16_MAX) {
+      fprintf(stderr, "max stack globals for variable %.*s\n", name->length, name->start);
     }
     writeValueArray(&vm.globals, UNDEFINE_VAL);
     tableSet(&vm.globalIndices, key, index);

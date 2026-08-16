@@ -21,8 +21,7 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
     newOffset = offset + 2;
     break;
   case OP_CONSTANT_SHORT:
-    constant = chunk->code[offset + 1] << 8;
-    constant = constant + chunk->code[offset + 2];
+    constant = (chunk->code[offset + 1] << 8) | chunk->code[offset + 2];
     newOffset = offset + 3;
     break;
   }

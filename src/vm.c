@@ -95,9 +95,16 @@ static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
 }
 
+static uint16_t readShort() {
+  uint8_t byte1 = *vm.ip++;
+  uint8_t byte2 = *vm.ip++;
+  return (uint16_t)((byte1 << 8) | byte2);
+}
+
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_CONSTANT_SHORT() (vm.chunk->constants.values[readShort()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
     do { \
@@ -123,6 +130,11 @@ for (;;) {
 #endif
   uint8_t instruction;
   switch (instruction = READ_BYTE()) {
+  case OP_CONSTANT_SHORT: {
+    Value constant = READ_CONSTANT_SHORT();
+    push(constant);
+    break;
+  }
   case OP_CONSTANT: {
     Value constant = READ_CONSTANT();
     push(constant);
@@ -212,6 +224,7 @@ for (;;) {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_CONSTANT_SHORT
 #undef READ_STRING
 #undef BINARY_OP
 }
