@@ -58,7 +58,7 @@ typedef struct {
 } Local;
 
 typedef struct {
-  Local locals[UINT8_COUNT];
+  Local locals[UINT16_MAX + 1];
   int localCount;
   int scopeDepth;
 } Compiler;
@@ -355,19 +355,41 @@ static void namedVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
   int arg = resolveLocal(current, &name);
   if (arg != -1) {
-    getOp = OP_GET_LOCAL;
-    setOp = OP_SET_LOCAL;
+    if (arg > UINT8_MAX) {
+      getOp = OP_GET_LOCAL_SHORT;
+      setOp = OP_SET_LOCAL_SHORT;
+    } else {
+      getOp = OP_GET_LOCAL;
+      setOp = OP_SET_LOCAL;
+    }
   } else {
     arg = identifierConstant(&name);
-    getOp = OP_GET_GLOBAL;
-    setOp = OP_SET_GLOBAL;
+    if (arg > UINT8_MAX) {
+      getOp = OP_GET_GLOBAL_SHORT;
+      setOp = OP_SET_GLOBAL_SHORT;
+    } else {
+      getOp = OP_GET_GLOBAL;
+      setOp = OP_SET_GLOBAL;
+    }
   }
+
+  printf("------%d-----\n", arg);
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    emitBytes(setOp, (uint8_t)arg);
+    if (arg > UINT8_MAX) {
+      emitByte(setOp);
+      emitShort(arg);
+    } else {
+      emitBytes(setOp, (uint8_t)arg);
+    }
   } else {
-    emitBytes(getOp, (uint8_t)arg);
+    if (arg > UINT8_MAX) {
+      emitByte(getOp);
+      emitShort(arg);
+    } else {
+      emitBytes(getOp, (uint8_t)arg);
+    }
   }
 }
 
@@ -496,7 +518,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 }
 
 static void addLocal(Token name) {
-  if (current->localCount == UINT8_COUNT) {
+  if (current->localCount > UINT16_MAX) {
     error("Too many local variables in function.");
     return;
   }
@@ -543,8 +565,13 @@ static void defineVariable(int index) {
     return;
   }
 
-  emitByte(OP_DEFINE_GLOBAL);
-  emitByte(index);
+  if (index > UINT8_MAX) {
+    emitByte(OP_DEFINE_GLOBAL_SHORT);
+    emitShort(index);
+  } else {
+    emitByte(OP_DEFINE_GLOBAL);
+    emitByte(index);
+  }
 }
 
 static ParseRule* getRule(TokenType type) {

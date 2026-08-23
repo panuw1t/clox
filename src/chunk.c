@@ -82,8 +82,7 @@ int getLine(LineArray* lines, int offset) {
 
 int writeConstant(Chunk* chunk, Value value, int line) {
   int constant = addConstant(chunk, value);
-  /* if (constant > UINT8_MAX) { */
-  if (constant > 2) {
+  if (constant > UINT8_MAX) {
     if (constant > UINT16_MAX) {
       // produce error
       fprintf(stderr, "max stack constant\n");

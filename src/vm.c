@@ -103,8 +103,9 @@ static uint16_t readShort() {
 
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
+#define READ_SHORT() (readShort())
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
-#define READ_CONSTANT_SHORT() (vm.chunk->constants.values[readShort()])
+#define READ_CONSTANT_SHORT() (vm.chunk->constants.values[READ_SHORT()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(valueType, op) \
     do { \
@@ -149,8 +150,18 @@ for (;;) {
     vm.stack[slot] = peek(0);
     break;
   }
+  case OP_SET_LOCAL_SHORT: {
+    uint16_t slot = READ_SHORT();
+    vm.stack[slot] = peek(0);
+    break;
+  }
   case OP_GET_LOCAL: {
     uint8_t slot = READ_BYTE();
+    push(vm.stack[slot]);
+    break;
+  }
+  case OP_GET_LOCAL_SHORT: {
+    uint16_t slot = READ_SHORT();
     push(vm.stack[slot]);
     break;
   }
@@ -164,13 +175,37 @@ for (;;) {
     push(value);
     break;
   }
+  case OP_GET_GLOBAL_SHORT: {
+    uint16_t index = READ_SHORT();
+    Value value = vm.globals.values[index];
+    if (IS_UNDEFINE(value)) {
+      runtimeError("Undefined variable '%s'.", getGlobalNameByIndex(&vm.globalIndices, index));
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    push(value);
+    break;
+  }
   case OP_DEFINE_GLOBAL: {
     uint8_t index = READ_BYTE();
     vm.globals.values[index] = pop();
     break;
   }
+  case OP_DEFINE_GLOBAL_SHORT: {
+    uint16_t index = READ_SHORT();
+    vm.globals.values[index] = pop();
+    break;
+  }
   case OP_SET_GLOBAL: {
-    uint8_t index = READ_BYTE();
+    uint16_t index = READ_BYTE();
+    if (IS_UNDEFINE(vm.globals.values[index])) {
+      runtimeError("Undefined variable '%s'.", getGlobalNameByIndex(&vm.globalIndices, index));
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    vm.globals.values[index] = peek(0);
+    break;
+  }
+  case OP_SET_GLOBAL_SHORT: {
+    uint16_t index = READ_SHORT();
     if (IS_UNDEFINE(vm.globals.values[index])) {
       runtimeError("Undefined variable '%s'.", getGlobalNameByIndex(&vm.globalIndices, index));
       return INTERPRET_RUNTIME_ERROR;
