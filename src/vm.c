@@ -267,6 +267,7 @@ for (;;) {
     vm.ip -= offset;
     break;
   }
+  case OP_DUPE: push(peek(0)); break;
   case OP_RETURN: {
     return INTERPRET_OK;
   }

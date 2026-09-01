@@ -1,0 +1,97 @@
+// ========================================
+// SWITCH PARSER - PASS CASES
+// ========================================
+
+
+// TEST 1: Basic switch
+
+var x = 30;
+switch (x) {
+case 12: print "yes";
+case 30: print "goat";
+case 40: print "goat2";
+default: print "aha";
+}
+
+
+// TEST 2: Empty case
+
+var x = 30;
+switch (x) {
+case 12:
+case 30: print "goat";
+default: print "aha";
+}
+
+
+// TEST 3: Multiple statements
+
+var x = 30;
+switch (x) {
+case 12:
+    print "one";
+    print "two";
+    print "three";
+case 30:
+    print "goat";
+default:
+    print "aha";
+}
+
+
+// TEST 4: No default
+
+var x = 30;
+switch (x) {
+case 10: print "ten";
+case 20: print "twenty";
+case 30: print "thirty";
+}
+
+
+// TEST 5: Only default
+
+var x = 30;
+switch (x) {
+default: print "nothing matched";
+}
+
+
+// TEST 6: Empty switch
+
+var x = 30;
+switch (x) {
+}
+
+
+// TEST 7: Default with multiple statements
+
+var x = 30;
+switch (x) {
+case 10:
+    print "ten";
+default:
+    print "fallback";
+    print "another";
+}
+
+
+// TEST 8: Multiple empty cases
+
+var x = 30;
+switch (x) {
+case 10:
+case 20:
+case 30:
+default:
+}
+
+
+// TEST 9: Expression in switch
+
+var x = 30;
+switch (x - 100) {
+case 12: print "yes";
+case 30: print "goat";
+default: print "aha";
+}
