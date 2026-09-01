@@ -61,6 +61,7 @@ typedef struct {
   Local locals[UINT16_MAX + 1];
   int localCount;
   int scopeDepth;
+  int loop;
 } Compiler;
 
 Parser parser;
@@ -192,6 +193,7 @@ static void patchJump(int offset) {
 static void initCompiler(Compiler* compiler) {
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  compiler->loop = -1;
   current = compiler;
 }
 
@@ -315,7 +317,9 @@ static void forStatement() {
     expressionStatement();
   }
 
+  int oldLoop = current->loop;
   int loopStart = currentChunk()->count;
+  current->loop = loopStart;
   int exitJump = -1;
   if (!match(TOKEN_SEMICOLON)) {
     expression();
@@ -335,6 +339,7 @@ static void forStatement() {
 
     emitLoop(loopStart);
     loopStart = incrementStart;
+    current->loop = loopStart;
     patchJump(bodyJump);
   }
 
@@ -347,6 +352,7 @@ static void forStatement() {
   }
 
   endScope();
+  current->loop = oldLoop;
 }
 
 static void ifStatement() {
@@ -446,8 +452,34 @@ static void printStatement() {
   TRACE_EXIT();
 }
 
+static void continueStatement() {
+  TRACE_ENTRY();
+  if (current->loop == -1) {
+    error("continue must be inside loop.");
+    return ;
+  }
+
+  if (current->scopeDepth > 0) {
+    int localCount = current->localCount;
+    int scope = current->scopeDepth - 1;
+    while (localCount > 0 &&
+           current->locals[localCount - 1].depth > scope) {
+      emitByte(OP_POP);
+      localCount--;
+    }
+  }
+
+  emitLoop(current->loop);
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+  TRACE_EXIT();
+}
+
 static void whileStatement() {
+  TRACE_ENTRY();
+  int oldLoop = current->loop;
   int loopStart = currentChunk()->count;
+  current->loop = loopStart;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -459,6 +491,8 @@ static void whileStatement() {
 
   patchJump(exitJump);
   emitByte(OP_POP);
+  current->loop = oldLoop;
+  TRACE_EXIT();
 }
 
 static void synchronize() {
@@ -509,6 +543,8 @@ static void statement() {
     forStatement();
   } else if (match(TOKEN_SWITCH)) {
     switchStatement();
+  } else if (match(TOKEN_CONTINUE)) {
+    continueStatement();
   } else if (match(TOKEN_LEFT_BRACE)) {
     beginScope();
     block();
