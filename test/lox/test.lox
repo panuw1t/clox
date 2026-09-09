@@ -1,17 +1,5 @@
-var i = 0;
-
-while (i < 3) {
-  i = i + 1;
-
-  {
-    var x = i;
-
-    if (x == 2) {
-      continue;
-    }
-
-    print x;
-  }
-
-  print "end";
+fun areWeHavingItYet() {
+  print "Yes we are!";
 }
+
+print areWeHavingItYet;
