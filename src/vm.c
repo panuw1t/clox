@@ -22,15 +22,23 @@ static void runtimeError(const char* format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  CallFrame* frame = &vm.frames[vm.frameCount - 1];
-  size_t instruction = frame->ip - frame->function->chunk.code - 1;
-  int line = getLine(&frame->function->chunk.lines, instruction);
+  for (int i = vm.frameCount - 1; i >= 0; i--) {
+    CallFrame* frame = &vm.frames[i];
+    ObjFunction* function = frame->function;
+    size_t instruction = frame->ip - function->chunk.code - 1;
+    int line = getLine(&frame->function->chunk.lines, instruction);
+    fprintf(stderr, "[line %d] in ", line);
+    if (function->name == NULL) {
+      fprintf(stderr, "script\n");
+    } else {
+      fprintf(stderr, "%s()\n", function->name->chars);
+    }
+  }
 
-  fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
 }
 
- void initStack() {
+void initStack() {
   vm.stackCapacity = 0;
   vm.stack = NULL;
   vm.stackTop = NULL;
@@ -97,6 +105,48 @@ static void concatenate() {
 
 static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
+}
+
+static bool call(ObjFunction* function, int argCount) {
+  if (argCount != function->arity) {
+    runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+    return false;
+  }
+
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+  CallFrame* frame = &vm.frames[vm.frameCount++];
+  frame->function = function;
+  frame->ip = function->chunk.code;
+  if (vm.stackTop == NULL) {
+    frame->slots = vm.stackTop;
+  } else {
+    frame->slots = vm.stackTop - argCount - 1;
+  }
+  return true;
+}
+
+static bool callValue(Value callee, int argCount) {
+  if (IS_OBJ(callee)) {
+    switch (OBJ_TYPE(callee)) {
+    case OBJ_FUNCTION:
+      return call(AS_FUNCTION(callee), argCount);
+    case OBJ_NATIVE: {
+      NativeFn native = AS_NATIVE(callee);
+      Value result = native(argCount, vm.stackTop - argCount);
+      vm.stackTop -= argCount + 1;
+      push(result);
+      return true;
+    }
+    default:
+      break; // Non-callable object type.
+    }
+  }
+  runtimeError("Can only call functions and classes.");
+  return false;
 }
 
 static InterpretResult run() {
@@ -266,8 +316,26 @@ for (;;) {
     break;
   }
   case OP_DUPE: push(peek(0)); break;
+  case OP_CALL: {
+    int argCount = READ_BYTE();
+    if (!callValue(peek(argCount), argCount)) {
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    frame = &vm.frames[vm.frameCount - 1];
+    break;
+  }
   case OP_RETURN: {
-    return INTERPRET_OK;
+    Value result = pop();
+    vm.frameCount--;
+    if (vm.frameCount == 0) {
+      pop();
+      return INTERPRET_OK;
+    }
+
+    vm.stackTop = frame->slots;
+    push(result);
+    frame = &vm.frames[vm.frameCount - 1];
+    break;
   }
   }
 }
@@ -285,10 +353,7 @@ InterpretResult interpret(const char* source) {
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL(function));
-  CallFrame* frame = &vm.frames[vm.frameCount++];
-  frame->function = function;
-  frame->ip = function->chunk.code;
-  frame->slots = vm.stack;
+  call(function, 0);
 
   return run();
 }

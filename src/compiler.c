@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -218,6 +219,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
+  emitByte(OP_NIL);
   emitReturn();
   ObjFunction* function = current->function;
 
@@ -258,6 +260,7 @@ static void parsePrecedence(Precedence precedence);
 static int resolveLocal(Compiler* compiler, Token* name);
 static void and_(bool canAssign);
 static void markInitialized();
+static uint8_t argumentList();
 
 static void ternary(bool canAssign) {
   TRACE_ENTRY();
@@ -287,6 +290,11 @@ static void binary(bool canAssign) {
   default: return; // Unreachable.
   }
   TRACE_EXIT();
+}
+
+static void call(bool canAssign) {
+  uint8_t argCount = argumentList();
+  emitBytes(OP_CALL, argCount);
 }
 
 static void literal(bool canAssign) {
@@ -512,6 +520,19 @@ static void printStatement() {
   TRACE_EXIT();
 }
 
+static void returnStatement() {
+  if (current->type == TYPE_SCRIPT) {
+    error("Can't return from top-level code.");
+  }
+  if (match(TOKEN_SEMICOLON)) {
+    emitReturn();
+  } else {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    emitByte(OP_RETURN);
+  }
+}
+
 static void continueStatement() {
   TRACE_ENTRY();
   if (current->loop == -1) {
@@ -599,6 +620,8 @@ static void statement() {
     printStatement();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_RETURN)) {
+    returnStatement();
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
   } else if (match(TOKEN_FOR)) {
@@ -712,7 +735,7 @@ static void unary(bool canAssign) {
 }
 
 ParseRule rules[] = {
-  [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
+  [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
@@ -871,6 +894,21 @@ static void defineVariable(int index) {
   }
 }
 
+static uint8_t argumentList() {
+  uint8_t argCount = 0;
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      expression();
+      argCount++;
+      if (argCount == 255) {
+        error("Can't have more than 255 arguments.");
+      }
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  return argCount;
+}
+
 static void and_(bool canAssign) {
   TRACE_ENTRY();
   int endJump = emitJump(OP_JUMP_IF_FALSE);
@@ -886,6 +924,27 @@ static ParseRule* getRule(TokenType type) {
   return &rules[type];
 }
 
+
+static void defineNative(const char* name, NativeFn function) {
+  Value key = OBJ_VAL(copyString(name, (int)strlen(name)));
+  Value index;
+  if (!tableGet(&vm.globalIndices, key, &index)) {
+    index = NUMBER_VAL(vm.globalIndices.count);
+    if (AS_INT(index) > UINT16_MAX) {
+      fprintf(stderr, "max stack globals cause by native function %.*s\n", (int)strlen(name), name);
+    }
+    writeValueArray(&vm.globals, UNDEFINE_VAL);
+    tableSet(&vm.globalIndices, key, index);
+  }
+
+  vm.globals.values[AS_INT(index)] = OBJ_VAL(newNative(function));
+}
+
+
+static Value clockNative(int argCount, Value* args) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
 ObjFunction* compile(const char* source) {
   initScanner(source);
   Compiler compiler;
@@ -895,6 +954,8 @@ ObjFunction* compile(const char* source) {
   parser.panicMode = false;
 
   advance();
+
+  defineNative("clock", clockNative);
 
   while (!match(TOKEN_EOF)) {
     declaration();
