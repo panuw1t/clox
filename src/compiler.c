@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -937,12 +938,33 @@ static void defineNative(const char* name, NativeFn function) {
     tableSet(&vm.globalIndices, key, index);
   }
 
-  vm.globals.values[AS_INT(index)] = OBJ_VAL(newNative(function));
+  vm.globals.values[AS_INT(index)] = OBJ_VAL(newNative(function, name));
 }
 
 
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+static bool clockNative(int argCount, Value* args, Value *result, const char** errMsg) {
+  if (argCount != 0) {
+    *errMsg = "Expected no argument";
+    return false;
+  }
+
+  *result =  NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+  return true;
+}
+
+static bool sqrtNative(int argCount, Value* args, Value *result, const char** errMsg) {
+  if (argCount != 1) {
+    *errMsg = "Expected 1 argument";
+    return false;
+  }
+
+  if (!IS_NUMBER(args[0])) {
+    *errMsg = "argument need to be numer";
+    return false;
+  }
+
+  *result =  NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
+  return true;
 }
 
 ObjFunction* compile(const char* source) {
@@ -956,6 +978,7 @@ ObjFunction* compile(const char* source) {
   advance();
 
   defineNative("clock", clockNative);
+  defineNative("sqrt", sqrtNative);
 
   while (!match(TOKEN_EOF)) {
     declaration();

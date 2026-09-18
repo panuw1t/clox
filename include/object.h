@@ -13,6 +13,7 @@
 
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
 #define AS_NATIVE(value)       (((ObjNative*)AS_OBJ(value))->function)
+#define AS_NATIVE_FUNCTION(value)       (((ObjNative*)AS_OBJ(value)))
 #define AS_STRING(value)       ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
 
@@ -34,11 +35,12 @@ typedef struct {
   ObjString* name;
 } ObjFunction;
 
-typedef Value (*NativeFn)(int argCount, Value* args);
+typedef bool (*NativeFn)(int argCount, Value* args, Value *result, const char** errMsg);
 
 typedef struct {
   Obj obj;
   NativeFn function;
+  const char* name;
 } ObjNative;
 
 struct ObjString {
@@ -49,7 +51,7 @@ struct ObjString {
 };
 
 ObjFunction* newFunction();
-ObjNative* newNative(NativeFn function);
+ObjNative* newNative(NativeFn function, const char* name);
 /* ObjString* takeString(char* chars, int length); */
 ObjString* copyString(const char* chars, int length);
 ObjString* allocateString(int length, uint32_t hash);

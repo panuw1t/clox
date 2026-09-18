@@ -136,7 +136,12 @@ static bool callValue(Value callee, int argCount) {
       return call(AS_FUNCTION(callee), argCount);
     case OBJ_NATIVE: {
       NativeFn native = AS_NATIVE(callee);
-      Value result = native(argCount, vm.stackTop - argCount);
+      Value result;
+      const char* errMsg;
+      if (!native(argCount, vm.stackTop - argCount, &result, &errMsg)) {
+        runtimeError("function %s: %s", AS_NATIVE_FUNCTION(callee)->name, errMsg);
+        return false;
+      }
       vm.stackTop -= argCount + 1;
       push(result);
       return true;
