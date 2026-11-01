@@ -6,6 +6,7 @@
 
 #include "common.h"
 #include "compiler.h"
+#include "memory.h"
 #include "scanner.h"
 #include "debug.h"
 
@@ -192,7 +193,10 @@ static uint8_t makeConstant(Value value) {
 
 static int emitConstant(Value value) {
   /* emitBytes(OP_CONSTANT, makeConstant(value)); */
-  return writeConstant(currentChunk(), value, parser.previous.line);
+  push(value);
+  int index = writeConstant(currentChunk(), value, parser.previous.line);
+  pop();
+  return index;
 }
 
 static void patchJump(int offset) {
@@ -214,6 +218,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
+  push(OBJ_VAL(compiler->function));
   compiler->loop = -1;
   current = compiler;
   if (type != TYPE_SCRIPT) {
@@ -225,6 +230,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   local->isCaptured = false;
   local->name.start = "";
   local->name.length = 0;
+  pop();
 }
 
 static ObjFunction* endCompiler() {
@@ -355,7 +361,9 @@ static void function(FunctionType type) {
   block();
 
   ObjFunction* function = endCompiler();
+  push(OBJ_VAL(function));
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  pop();
 
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -988,6 +996,7 @@ static ParseRule* getRule(TokenType type) {
 
 static void defineNative(const char* name, NativeFn function) {
   Value key = OBJ_VAL(copyString(name, (int)strlen(name)));
+  push(key);
   Value index;
   if (!tableGet(&vm.globalIndices, key, &index)) {
     index = NUMBER_VAL(vm.globalIndices.count);
@@ -999,6 +1008,7 @@ static void defineNative(const char* name, NativeFn function) {
   }
 
   vm.globals.values[AS_INT(index)] = OBJ_VAL(newNative(function, name));
+  pop();
 }
 
 
@@ -1028,6 +1038,8 @@ static bool sqrtNative(int argCount, Value* args, Value *result, const char** er
 }
 
 ObjFunction* compile(const char* source) {
+  push(NIL_VAL);
+  pop();
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
@@ -1046,4 +1058,12 @@ ObjFunction* compile(const char* source) {
 
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;
+}
+
+void markCompilerRoots() {
+  Compiler* compiler = current;
+  while (compiler != NULL) {
+    markObject((Obj*)compiler->function);
+    compiler = compiler->enclosing;
+  }
 }

@@ -53,6 +53,9 @@ void initVM() {
   vm.openUpvalues = NULL;
   vm.objects = NULL;
   vm.frameCount = 0;
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = NULL;
 }
 
 void freeVM() {

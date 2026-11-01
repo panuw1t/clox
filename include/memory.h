@@ -22,6 +22,9 @@ void init_my_heap(size_t total_capacity);
 void* my_malloc(size_t size);
 void my_free(void* pointer);
 void *my_reallocate(void* pointer, size_t oldSize, size_t newSize);
+void collectGarbage();
+void markValue(Value value);
+void markObject(Obj* object);
 void freeObjects();
 
 

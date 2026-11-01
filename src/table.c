@@ -155,6 +155,14 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
   }
 }
 
+void markTable(Table* table) {
+  for (int i = 0; i< table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    markObject(AS_OBJ(entry->key));
+    markValue(entry->value);
+  }
+}
+
 char* getGlobalNameByIndex(Table* table, int index) {
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];

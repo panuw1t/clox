@@ -26,4 +26,6 @@ uint32_t hashValue(Value value);
 uint32_t hashNumber(double value);
 char* getGlobalNameByIndex(Table* table, int index);
 
+void markTable(Table* table);
+
 #endif

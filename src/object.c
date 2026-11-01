@@ -10,11 +10,27 @@
 #define ALLOCATE_OBJ(type, objectType) \
     (type*)allocateObject(sizeof(type), objectType)
 
+void printObjectType(ObjType type) {
+  switch (type) {
+  case OBJ_CLOSURE: printf("OBJ_CLOSURE"); break;
+  case OBJ_FUNCTION: printf("OBJ_FUNCTION"); break;
+  case OBJ_NATIVE: printf("OBJ_NATIVE"); break;
+  case OBJ_STRING: printf("OBJ_STRING"); break;
+  case OBJ_UPVALUE: printf("OBJ_STRING"); break;
+  }
+}
+
 static Obj* allocateObject(size_t size, ObjType type) {
   Obj* object = (Obj*)REALLOCATE(NULL, 0, size);
   object->type = type;
   object->next = vm.objects;
+  object->isMarked = false;
   vm.objects = object;
+#ifdef DEBUG_LOG_GC
+  printf("%p allocate %zu for ", (void*)object, size);
+  printObjectType(type);
+  printf("\n");
+#endif
   return object;
 }
 
@@ -72,9 +88,16 @@ ObjString* copyString(const char* chars, int length) {
   ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
   if (interned != NULL) return interned;
   ObjString* string = allocateString(length, hash);
-  tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
+  push(OBJ_VAL(string));
   memcpy(string->chars, chars, length);
   string->chars[length] = '\0';
+  tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
+#ifdef DEBUG_LOG_GC
+  printf("-> ");
+  printObject(OBJ_VAL(string));
+  printf("\n");
+#endif
+  pop();
   return string;
 }
 
@@ -100,7 +123,7 @@ void printObject(Value value) {
     printFunction(AS_CLOSURE(value)->function);
     break;
   case OBJ_NATIVE:
-    printf("<native fn>");
+    printf("<native fn %s>", AS_NATIVE_FUNCTION(value)->name);
     break;
   case OBJ_STRING:
     printf("%s", AS_CSTRING(value));

@@ -1,13 +1,8 @@
-fun outer() {
-  var x = "outside";
-  fun inner() {
-    print x;
-  }
-
-  return inner;
+fun fox() {
+  print "hello world";
 }
 
-var closure = outer();
-"hello" + "world";
-closure();
-
+var a = "first value";
+a = "updated";
+// GC here.
+print a;
