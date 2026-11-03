@@ -22,6 +22,7 @@ bool tableSet(Table* table, Value key, Value value);
 bool tableDelete(Table* table, Value key);
 void tableAddAll(Table* from, Table* to);
 ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash);
+void tableRemoveWhite(Table* table);
 uint32_t hashValue(Value value);
 uint32_t hashNumber(double value);
 char* getGlobalNameByIndex(Table* table, int index);

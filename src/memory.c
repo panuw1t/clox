@@ -10,6 +10,8 @@
 #include "object.h"
 #endif
 
+#define GC_HEAP_GROW_FACTOR 2
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   if (newSize == 0) {
     free(pointer);
@@ -153,17 +155,15 @@ static void sweep() {
       previous = object;
       object = object->next;
     } else {
-      /* Obj* unreached = object; */
-      /* object = object->next; */
-      /* if (previous != NULL) { */
-      /*   previous->next = object; */
-      /* } else { */
-      /*   vm.objects = object; */
-      /* } */
-      /*  */
-      /* freeObject(unreached); */
-      previous = object;
+      Obj* unreached = object;
       object = object->next;
+      if (previous != NULL) {
+        previous->next = object;
+      } else {
+        vm.objects = object;
+      }
+
+      freeObject(unreached);
     }
   }
 }
@@ -171,13 +171,20 @@ static void sweep() {
 void collectGarbage() {
 #ifdef DEBUG_LOG_GC
   printf("-- gc begin\n");
+  size_t before = vm.bytesAllocated;
 #endif
   markRoots();
+  /* tableRemoveWhite(&vm.strings); */
   traceReferences();
   sweep();
 
+  vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
+
 #ifdef DEBUG_LOG_GC
   printf("-- gc end\n");
+  printf("   collected %zu bytes (from %zu to %zu) next at %zu\n",
+         before - vm.bytesAllocated, before, vm.bytesAllocated,
+         vm.nextGC);
 #endif
 }
 
@@ -253,12 +260,15 @@ void my_free(void* pointer) {
 }
 
 void *my_reallocate(void* pointer, size_t oldSize, size_t newSize) {
+  vm.bytesAllocated += newSize - oldSize;
   if (newSize > oldSize) {
 #ifdef DEBUG_STRESS_GC
     collectGarbage();
 #endif
   }
-
+  if (vm.bytesAllocated > vm.nextGC) {
+    collectGarbage();
+  }
   if (newSize == 0) {
     my_free(pointer);
     return NULL;

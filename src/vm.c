@@ -54,6 +54,10 @@ void initVM() {
   vm.objects = NULL;
   vm.frameCount = 0;
   vm.grayCount = 0;
+  vm.bytesAllocated = 0;
+  /* vm.nextGC = 1024 * 1024; */
+  vm.nextGC = 256;
+
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
 }

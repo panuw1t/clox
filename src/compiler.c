@@ -372,10 +372,12 @@ static void function(FunctionType type) {
 }
 
 static void funDeclaration() {
+  TRACE_ENTRY();
   uint8_t global = parseVariable("Expect function name.");
   markInitialized();
   function(TYPE_FUNCTION);
   defineVariable(global);
+  TRACE_EXIT();
 }
 
 static void varDeclaration() {
@@ -834,6 +836,7 @@ static void parsePrecedence(Precedence precedence) {
 
 static int identifierConstant(Token* name) {
   Value key = OBJ_VAL(copyString(name->start, name->length));
+  push(key);
   Value index;
   if (!tableGet(&vm.globalIndices, key, &index)) {
     index = NUMBER_VAL(vm.globalIndices.count);
@@ -844,6 +847,7 @@ static int identifierConstant(Token* name) {
     tableSet(&vm.globalIndices, key, index);
   }
 
+  pop();
   return AS_INT(index);
 }
 
@@ -948,6 +952,7 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
+
 static void defineVariable(int index) {
   if (current->scopeDepth > 0) {
     markInitialized();
@@ -1049,8 +1054,8 @@ ObjFunction* compile(const char* source) {
 
   advance();
 
-  defineNative("clock", clockNative);
-  defineNative("sqrt", sqrtNative);
+  /* defineNative("clock", clockNative); */
+  /* defineNative("sqrt", sqrtNative); */
 
   while (!match(TOKEN_EOF)) {
     declaration();
