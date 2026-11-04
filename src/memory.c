@@ -174,8 +174,8 @@ void collectGarbage() {
   size_t before = vm.bytesAllocated;
 #endif
   markRoots();
-  /* tableRemoveWhite(&vm.strings); */
   traceReferences();
+  tableRemoveWhite(&vm.strings);
   sweep();
 
   vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;

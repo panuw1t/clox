@@ -5,4 +5,5 @@ fun fox() {
 var a = "first value";
 a = "updated";
 // GC here.
-print a;
+print a + " yes";
+

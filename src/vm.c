@@ -10,6 +10,8 @@
 
 VM vm;
 
+static Value peek(int distance);
+
 static void resetStack() {
   vm.openUpvalues = NULL;
   vm.stackTop = vm.stack;
@@ -55,8 +57,7 @@ void initVM() {
   vm.frameCount = 0;
   vm.grayCount = 0;
   vm.bytesAllocated = 0;
-  /* vm.nextGC = 1024 * 1024; */
-  vm.nextGC = 256;
+  vm.nextGC = 1024 * 1024;
 
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
@@ -92,8 +93,8 @@ static bool isFalsey(Value value) {
 }
 
 static void concatenate() {
-  ObjString* b = AS_STRING(pop());
-  ObjString* a = AS_STRING(pop());
+  ObjString* b = AS_STRING(peek(0));
+  ObjString* a = AS_STRING(peek(1));
 
   int length = a->length + b->length;
   ObjString* string = allocateString(length, 0);
@@ -103,12 +104,14 @@ static void concatenate() {
   uint32_t hash = hashString(string->chars, length);
   string->hash = hash;
   ObjString* interned = tableFindString(&vm.strings, string->chars, length, hash);
+  pop();
+  pop();
   if (interned != NULL) {
     FREE(ObjString, string);
     push(OBJ_VAL(interned));
   } else {
-    tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
     push(OBJ_VAL(string));
+    tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL);
   }
 }
 
