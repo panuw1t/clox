@@ -1,9 +1,2 @@
-fun fox() {
-  print "hello world";
-}
-
-var a = "first value";
-a = "updated";
-// GC here.
-print a + " yes";
-
+class Brioche {}
+print Brioche;

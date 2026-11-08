@@ -24,7 +24,7 @@ DEPS = $(CORE_OBJS:.o=.d) $(MAIN_OBJ:.o=.d) $(TEST_OBJS:.o=.d)
 all: $(TARGET)
 
 $(TARGET): $(CORE_OBJS) $(MAIN_OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 test: $(TEST_TARGET)
 	@./$< $(TEST_ARGS)

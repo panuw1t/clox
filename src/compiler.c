@@ -281,6 +281,7 @@ static void and_(bool canAssign);
 static void markInitialized();
 static uint8_t argumentList();
 static int resolveUpvalue(Compiler* compiler, Token* name);
+static void declareVariable();
 
 static void ternary(bool canAssign) {
   TRACE_ENTRY();
@@ -377,6 +378,25 @@ static void funDeclaration() {
   markInitialized();
   function(TYPE_FUNCTION);
   defineVariable(global);
+  TRACE_EXIT();
+}
+
+static int getTokenName() {
+  Token* name = &parser.previous;
+  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
+
+static void classDeclaration() {
+  TRACE_ENTRY();
+  uint8_t global = parseVariable("Expect class name.");
+  int index = getTokenName();
+  markInitialized();
+
+  emitBytes(OP_CLASS, index);
+  defineVariable(global);
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
   TRACE_EXIT();
 }
 
@@ -631,7 +651,9 @@ static void synchronize() {
 
 static void declaration() {
   TRACE_ENTRY();
-  if (match(TOKEN_FUN)) {
+  if (match(TOKEN_CLASS)) {
+    classDeclaration();
+  } else if (match(TOKEN_FUN)) {
     funDeclaration();
   } else if (match(TOKEN_VAR)) {
     varDeclaration();
