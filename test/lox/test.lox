@@ -1,6 +1,10 @@
-class Pair {}
+class Person {}
 
-var pair = Pair();
-pair.first = 1;
-pair.second = 2;
-print pair.first + pair.second; // 3.
+var person = Person();
+
+print person.name;
+print person.age;
+
+if (person.age == nil) {
+  print "Age does not exist.";
+}

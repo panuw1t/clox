@@ -339,14 +339,13 @@ for (;;) {
     Value constant = READ_CONSTANT();
 
     Value value;
+    pop(); // Instance.
     if (tableGet(&instance->fields, constant, &value)) {
-      pop(); // Instance.
       push(value);
-      break;
+    } else {
+      push(NIL_VAL);
     }
-
-    runtimeError("Undefined property '%s'.", AS_STRING(constant));
-    return INTERPRET_RUNTIME_ERROR;
+    break;
   }
   case OP_SET_PROPERTY: {
     if (!IS_INSTANCE(peek(1))) {
