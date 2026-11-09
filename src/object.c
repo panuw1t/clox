@@ -12,11 +12,13 @@
 
 void printObjectType(ObjType type) {
   switch (type) {
-  case OBJ_CLOSURE: printf("OBJ_CLOSURE"); break;
+  case OBJ_CLOSURE:  printf("OBJ_CLOSURE");  break;
   case OBJ_FUNCTION: printf("OBJ_FUNCTION"); break;
-  case OBJ_NATIVE: printf("OBJ_NATIVE"); break;
-  case OBJ_STRING: printf("OBJ_STRING"); break;
-  case OBJ_UPVALUE: printf("OBJ_STRING"); break;
+  case OBJ_NATIVE:   printf("OBJ_NATIVE");   break;
+  case OBJ_STRING:   printf("OBJ_STRING");   break;
+  case OBJ_UPVALUE:  printf("OBJ_STRING");   break;
+  case OBJ_CLASS:    printf("OBJ_CLASS");    break;
+  case OBJ_INSTANCE: printf("OBJ_INSTANCE"); break;
   }
 }
 
@@ -60,6 +62,13 @@ ObjFunction* newFunction() {
   function->name = NULL;
   initChunk(&function->chunk);
   return function;
+}
+
+ObjInstance* newInstance(ObjClass* klass) {
+  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+  instance->klass = klass;
+  initTable(&instance->fields);
+  return instance;
 }
 
 ObjNative* newNative(NativeFn function, const char* name) {
@@ -130,6 +139,9 @@ void printObject(Value value) {
     break;
   case OBJ_CLOSURE:
     printFunction(AS_CLOSURE(value)->function);
+    break;
+  case OBJ_INSTANCE:
+    printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
     break;
   case OBJ_NATIVE:
     printf("<native fn %s>", AS_NATIVE_FUNCTION(value)->name);
