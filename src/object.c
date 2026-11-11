@@ -12,13 +12,14 @@
 
 void printObjectType(ObjType type) {
   switch (type) {
-  case OBJ_CLOSURE:  printf("OBJ_CLOSURE");  break;
-  case OBJ_FUNCTION: printf("OBJ_FUNCTION"); break;
-  case OBJ_NATIVE:   printf("OBJ_NATIVE");   break;
-  case OBJ_STRING:   printf("OBJ_STRING");   break;
-  case OBJ_UPVALUE:  printf("OBJ_STRING");   break;
-  case OBJ_CLASS:    printf("OBJ_CLASS");    break;
-  case OBJ_INSTANCE: printf("OBJ_INSTANCE"); break;
+  case OBJ_CLOSURE:      printf("OBJ_CLOSURE");      break;
+  case OBJ_FUNCTION:     printf("OBJ_FUNCTION");     break;
+  case OBJ_NATIVE:       printf("OBJ_NATIVE");       break;
+  case OBJ_STRING:       printf("OBJ_STRING");       break;
+  case OBJ_UPVALUE:      printf("OBJ_STRING");       break;
+  case OBJ_CLASS:        printf("OBJ_CLASS");        break;
+  case OBJ_INSTANCE:     printf("OBJ_INSTANCE");     break;
+  case OBJ_BOUND_METHOD: printf("OBJ_BOUND_METHOD"); break;
   }
 }
 
@@ -36,8 +37,16 @@ static Obj* allocateObject(size_t size, ObjType type) {
   return object;
 }
 
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
+  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+  bound->receiver = receiver;
+  bound->method = method;
+  return bound;
+}
+
 ObjClass* newClass(ObjString* name) {
   ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  initTable(&klass->methods);
   klass->name = name;
   return klass;
 }
@@ -134,6 +143,9 @@ static void printFunction(ObjFunction* function) {
 
 void printObject(Value value) {
   switch (OBJ_TYPE(value)) {
+  case OBJ_BOUND_METHOD:
+    printFunction(AS_BOUND_METHOD(value)->method->function);
+    break;
   case OBJ_CLASS:
     printf("%s", AS_CLASS(value)->name->chars);
     break;

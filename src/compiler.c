@@ -68,6 +68,7 @@ typedef struct {
 
 typedef enum {
   TYPE_FUNCTION,
+  TYPE_METHOD,
   TYPE_SCRIPT
 } FunctionType;
 
@@ -228,8 +229,13 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   Local* local = &current->locals[current->localCount++];
   local->depth = 0;
   local->isCaptured = false;
-  local->name.start = "";
-  local->name.length = 0;
+  if (type != TYPE_FUNCTION) {
+    local->name.start = "this";
+    local->name.length = 4;
+  } else {
+    local->name.start = "";
+    local->name.length = 0;
+  }
   pop();
 }
 
@@ -283,6 +289,7 @@ static uint8_t argumentList();
 static int resolveUpvalue(Compiler* compiler, Token* name);
 static void declareVariable();
 static int getTokenName();
+static void namedVariable(Token name, bool canAssign);
 
 static void ternary(bool canAssign) {
   TRACE_ENTRY();
@@ -394,6 +401,18 @@ static void funDeclaration() {
   TRACE_EXIT();
 }
 
+static void method() {
+  TRACE_ENTRY();
+  consume(TOKEN_IDENTIFIER, "Expect method name.");
+  uint8_t constant = getTokenName();
+
+  FunctionType type = TYPE_METHOD;
+  function(type);
+  emitBytes(OP_METHOD, constant);
+  TRACE_EXIT();
+}
+
+
 static int getTokenName() {
   Token* name = &parser.previous;
   return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
@@ -402,14 +421,22 @@ static int getTokenName() {
 static void classDeclaration() {
   TRACE_ENTRY();
   uint8_t global = parseVariable("Expect class name.");
+  Token className = parser.previous;
   int index = getTokenName();
   markInitialized();
 
   emitBytes(OP_CLASS, index);
   defineVariable(global);
 
+  namedVariable(className, false);
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    method();
+  }
+
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+  emitByte(OP_POP);
   TRACE_EXIT();
 }
 
@@ -785,6 +812,10 @@ static void variable(bool canAssign) {
   TRACE_EXIT();
 }
 
+static void this_(bool canAssign) {
+  variable(false);
+}
+
 static void unary(bool canAssign) {
   TRACE_ENTRY();
   TokenType operatorType = parser.previous.type;
@@ -836,7 +867,7 @@ ParseRule rules[] = {
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
   [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},

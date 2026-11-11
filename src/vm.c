@@ -144,6 +144,11 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
+    case OBJ_BOUND_METHOD: {
+      ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+      vm.stackTop[-argCount - 1] = bound->receiver;
+      return call(bound->method, argCount);
+    }
     case OBJ_CLASS: {
       ObjClass* klass = AS_CLASS(callee);
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
@@ -169,6 +174,18 @@ static bool callValue(Value callee, int argCount) {
   }
   runtimeError("Can only call functions and classes.");
   return false;
+}
+
+static bool bindMethod(ObjClass* klass, Value name) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    return false;
+  }
+
+  ObjBoundMethod* bound = newBoundMethod(peek(0), AS_CLOSURE(method));
+  pop();
+  push(OBJ_VAL(bound));
+  return true;
 }
 
 static ObjUpvalue* captureUpvalue(Value* local) {
@@ -203,6 +220,13 @@ static void closeUpvalues(Value* last) {
     upvalue->location = &upvalue->closed;
     vm.openUpvalues = upvalue->next;
   }
+}
+
+static void defineMethod(Value name) {
+  Value method = peek(0);
+  ObjClass* klass = AS_CLASS(peek(1));
+  tableSet(&klass->methods, name, method);
+  pop();
 }
 
 static InterpretResult run() {
@@ -339,10 +363,11 @@ for (;;) {
     Value constant = READ_CONSTANT();
 
     Value value;
-    pop(); // Instance.
     if (tableGet(&instance->fields, constant, &value)) {
+      pop(); // Instance.
       push(value);
-    } else {
+    } else if (!bindMethod(instance->klass, constant)) {
+      pop(); // Instance.
       push(NIL_VAL);
     }
     break;
@@ -460,6 +485,9 @@ for (;;) {
   }
   case OP_CLASS:
     push(OBJ_VAL(newClass(READ_STRING())));
+    break;
+  case OP_METHOD:
+    defineMethod(READ_CONSTANT());
     break;
   }
 }

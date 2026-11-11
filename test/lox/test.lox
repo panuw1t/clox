@@ -1,10 +1,11 @@
-class Person {}
+class Nested {
+  method() {
+    fun function() {
+      print this;
+    }
 
-var person = Person();
-
-print person.name;
-print person.age;
-
-if (person.age == nil) {
-  print "Age does not exist.";
+    function();
+  }
 }
+
+Nested().method();
