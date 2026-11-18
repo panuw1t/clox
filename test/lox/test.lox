@@ -1,11 +1,13 @@
-class Nested {
-  method() {
-    fun function() {
-      print this;
+class Oops {
+  init() {
+    fun f() {
+      print "not a method";
     }
 
-    function();
+    this.field = f;
   }
+
 }
 
-Nested().method();
+var oops = Oops();
+oops.field();

@@ -69,6 +69,7 @@ typedef struct {
 typedef enum {
   TYPE_FUNCTION,
   TYPE_METHOD,
+  TYPE_INITIALIZER,
   TYPE_SCRIPT
 } FunctionType;
 
@@ -84,8 +85,13 @@ typedef struct Compiler {
   int loop;
 } Compiler;
 
+typedef struct ClassCompiler {
+  struct ClassCompiler* enclosing;
+} ClassCompiler;
+
 Parser parser;
 Compiler* current = NULL;
+ClassCompiler* currentClass = NULL;
 
 static Chunk* currentChunk() {
   return &current->function->chunk;
@@ -240,7 +246,12 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
-  emitByte(OP_NIL);
+  if (current->type == TYPE_INITIALIZER) {
+    emitBytes(OP_GET_LOCAL, 0);
+  } else {
+    emitByte(OP_NIL);
+  }
+
   emitReturn();
   ObjFunction* function = current->function;
 
@@ -333,6 +344,10 @@ static void dot(bool canAssign) {
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
     emitBytes(OP_SET_PROPERTY, name);
+  } else if (match(TOKEN_LEFT_PAREN)) {
+    uint8_t argCount = argumentList();
+    emitBytes(OP_INVOKE, name);
+    emitByte(argCount);
   } else {
     emitBytes(OP_GET_PROPERTY, name);
   }
@@ -407,6 +422,10 @@ static void method() {
   uint8_t constant = getTokenName();
 
   FunctionType type = TYPE_METHOD;
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+    type = TYPE_INITIALIZER;
+  }
+
   function(type);
   emitBytes(OP_METHOD, constant);
   TRACE_EXIT();
@@ -428,6 +447,10 @@ static void classDeclaration() {
   emitBytes(OP_CLASS, index);
   defineVariable(global);
 
+  ClassCompiler classCompiler;
+  classCompiler.enclosing = currentClass;
+  currentClass = &classCompiler;
+
   namedVariable(className, false);
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
 
@@ -437,6 +460,8 @@ static void classDeclaration() {
 
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
   emitByte(OP_POP);
+
+  currentClass = currentClass->enclosing;
   TRACE_EXIT();
 }
 
@@ -616,6 +641,10 @@ static void returnStatement() {
   if (match(TOKEN_SEMICOLON)) {
     emitReturn();
   } else {
+    if (current->type == TYPE_INITIALIZER) {
+      error("Can't return a value from an initializer.");
+    }
+
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
     emitByte(OP_RETURN);
@@ -813,6 +842,11 @@ static void variable(bool canAssign) {
 }
 
 static void this_(bool canAssign) {
+  if (currentClass == NULL) {
+    error("Can't use 'this' outside of a class.");
+    return;
+  }
+
   variable(false);
 }
 
@@ -1109,8 +1143,6 @@ static bool sqrtNative(int argCount, Value* args, Value *result, const char** er
 }
 
 ObjFunction* compile(const char* source) {
-  push(NIL_VAL);
-  pop();
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);

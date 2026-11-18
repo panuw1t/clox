@@ -45,6 +45,8 @@ void initStack() {
   vm.stackCapacity = 0;
   vm.stack = NULL;
   vm.stackTop = NULL;
+  push(NIL_VAL);
+  pop();
 }
 
 void initVM() {
@@ -52,15 +54,17 @@ void initVM() {
   initTable(&vm.strings);
   initValueArray(&vm.globals);
   initTable(&vm.globalIndices);
+  vm.initString = NULL;
   vm.openUpvalues = NULL;
   vm.objects = NULL;
   vm.frameCount = 0;
   vm.grayCount = 0;
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
-
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
+
+  vm.initString = copyString("init", 4);
 }
 
 void freeVM() {
@@ -152,6 +156,13 @@ static bool callValue(Value callee, int argCount) {
     case OBJ_CLASS: {
       ObjClass* klass = AS_CLASS(callee);
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+      Value initializer;
+      if (tableGet(&klass->methods, OBJ_VAL(vm.initString), &initializer)) {
+        return call(AS_CLOSURE(initializer), argCount);
+      } else if (argCount != 0) {
+        runtimeError("Expected 0 arguments but got %d.", argCount);
+        return false;
+      }
       return true;
     }
     case OBJ_CLOSURE:
@@ -175,6 +186,36 @@ static bool callValue(Value callee, int argCount) {
   runtimeError("Can only call functions and classes.");
   return false;
 }
+
+
+static bool invokeFromClass(ObjClass* klass, Value name, int argCount) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    runtimeError("Undefined property '%s'.", AS_STRING(name)->chars);
+    return false;
+  }
+  return call(AS_CLOSURE(method), argCount);
+}
+
+static bool invoke(Value name, int argCount) {
+  Value receiver = peek(argCount);
+
+  if (!IS_INSTANCE(receiver)) {
+    runtimeError("Only instances have methods.");
+    return false;
+  }
+
+  ObjInstance* instance = AS_INSTANCE(receiver);
+
+  Value value;
+  if (tableGet(&instance->fields, name, &value)) {
+    vm.stackTop[-argCount - 1] = value;
+    return callValue(value, argCount);
+  }
+
+  return invokeFromClass(instance->klass, name, argCount);
+}
+
 
 static bool bindMethod(ObjClass* klass, Value name) {
   Value method;
@@ -443,6 +484,17 @@ for (;;) {
     int argCount = READ_BYTE();
     frame->ip = ip;
     if (!callValue(peek(argCount), argCount)) {
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    frame = &vm.frames[vm.frameCount - 1];
+    ip = frame->ip;
+    break;
+  }
+  case OP_INVOKE: {
+    Value method = READ_CONSTANT();
+    int argCount = READ_BYTE();
+    frame->ip = ip;
+    if (!invoke(method, argCount)) {
       return INTERPRET_RUNTIME_ERROR;
     }
     frame = &vm.frames[vm.frameCount - 1];

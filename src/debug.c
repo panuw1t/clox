@@ -31,6 +31,15 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
   return newOffset;
 }
 
+static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
+  uint8_t constant = chunk->code[offset + 1];
+  uint8_t argCount = chunk->code[offset + 2];
+  printf("%-16s (%d args) %4d '", name, argCount, constant);
+  printValue(chunk->constants.values[constant]);
+  printf("'\n");
+  return offset + 3;
+}
+
 static int variableInstruction(const char* name, Chunk* chunk, int offset) {
   uint8_t index = chunk->code[offset + 1];
   printf("%-16s %4d '", name, index);
@@ -157,6 +166,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     return simpleInstruction("OP_DUPE", offset);
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
+  case OP_INVOKE:
+    return invokeInstruction("OP_INVOKE", chunk, offset);
   case OP_CLOSURE: {
     offset++;
     uint8_t constant = chunk->code[offset++];
